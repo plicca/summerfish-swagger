@@ -12,5 +12,18 @@ it knows how to serialize and deserialize swagger specifications.
 ##  Features
 `summerfish-swagger` brings to the go community a way of generating swagger documentation without needing any annotations or changes on the your code. It is also integrated with the Swagger UI to help you serving as one endpoint.
 
+##  Example
+You can check our live server docs at https://go.plicca.com/swagger-ui/
+Check out the example package to test with a minimum code example.
+
 ##  Project status
 `summerfish-swagger` is still very early in its life.
+
+##  Future features
+- Support more router (currently we only support gorrila mux)
+- Add more test coverage
+- Iron out the implementation
+- Your suggestion here :)
+
+##  Help us out
+Like this project? Feel free to create an issue, develop a new feature and contribute in any way to this project
