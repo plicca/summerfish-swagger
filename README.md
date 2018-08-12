@@ -14,6 +14,7 @@ it knows how to serialize and deserialize swagger specifications.
 
 ##  Example
 You can check our live server docs at https://go.plicca.com/swagger-ui/
+
 Check out the example package to test with a minimum code example.
 
 ##  Project status
