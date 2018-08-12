@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"os"
-	"summerfish-swagger/swaggerui"
+	"github.com/summerfish-swagger/swaggerui"
 )
 
 type Method map[string]Operation
