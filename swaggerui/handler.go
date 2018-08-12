@@ -4,8 +4,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"summerfish-swagger/swaggerui/assetfs"
-	"summerfish-swagger/swaggerui/internal"
+	"github.com/plicca/summerfish-swagger/swaggerui/assetfs"
+	"github.com/plicca/summerfish-swagger/swaggerui/internal"
 	"time"
 )
 
