@@ -34,10 +34,8 @@ type SchemaParameters struct {
 }
 
 func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
-
 	var routeParsers []RouteParser
 	err = r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) (err error) {
-
 		routeParser := RouteParser{}
 		routeParser.Route, err = route.GetPathTemplate()
 		if err != nil {
@@ -77,7 +75,6 @@ func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 }
 
 func generateFileMap(routeParsers []RouteParser) (sourceFiles map[string][]string, err error) {
-
 	sourceFiles = make(map[string][]string)
 	for _, rp := range routeParsers {
 		if _, wasProcessed := sourceFiles[rp.FullPath]; !wasProcessed {

@@ -2,6 +2,7 @@ package swagger
 
 import (
 	"bufio"
+	"go/build"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"fmt"
 )
 
 type RouteParser struct {
@@ -42,7 +44,6 @@ func (rp *RouteParser) processHandler(handler http.Handler) {
 }
 
 func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
-
 	pathRegex, _ := regexp.Compile("vars\\[\"(.+?)\"\\]")
 	queryRegex, _ := regexp.Compile("r\\.URL\\.Query\\(\\).Get\\(\"(.+)\"\\)")
 	bodyRegex, _ := regexp.Compile("json.NewDecoder\\(r.Body\\).Decode\\((.+)\\)")
@@ -170,12 +171,17 @@ func (rp *RouteParser) searchForFullPath(name string, lines []string) (result []
 
 		path := regex.FindStringSubmatch(lineText)
 		if len(path) > 1 {
-			//TODO review how to get true path
+			goPath := os.Getenv("GOPATH")
+			if len(goPath) == 0 {
+				goPath = build.Default.GOPATH
+			}
+
 			var fullPath string
-			fullPath, err = filepath.Abs("../../" + path[1] + "/" + splitName)
+			fullPath, err = filepath.Abs(goPath + "/src/" + path[1] + "/" + splitName)
 			if err != nil {
 				return
 			}
+			fmt.Println(fullPath)
 
 			var files []os.FileInfo
 			files, err = ioutil.ReadDir(fullPath)
