@@ -3,7 +3,7 @@
 // fs.go
 // DO NOT EDIT!
 
-package assetfs
+package internal
 
 import (
 	"bytes"
