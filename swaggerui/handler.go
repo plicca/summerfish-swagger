@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"github.com/plicca/summerfish-swagger/swaggerui/assetfs"
+	"github.com/plicca/summerfish-swagger/swaggerui/internal"
 	"time"
 )
 
@@ -21,7 +22,11 @@ func FileHandler(swaggerPath string) (http.Handler, error) {
 
 // UIHandler returns an HTTP handler that serves the swagger UI
 func UIHandler() (http.Handler, error) {
-	assetStore := assetfs.CreateAssetStore()
+	assetStore := &assetfs.AssetStore{
+		Names: internal.AssetNames,
+		Data:  internal.Asset,
+		Info:  internal.AssetInfo,
+	}
 
 	fs, err := assetfs.New(assetStore)
 	if err != nil {
