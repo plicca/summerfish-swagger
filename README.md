@@ -1,5 +1,6 @@
 # summerfish-swagger
 
+With SummerFish we bring to Go developers a way of having swagger documentation auto-generated with no annotations needed!
 
 This package contains a golang implementation of Swagger 2.0 (aka [OpenAPI 2.0](https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md)):
 it knows how to serialize and deserialize swagger specifications.
