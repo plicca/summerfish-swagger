@@ -147,10 +147,17 @@ func (rp *RouteParser) searchForStruct(name string, paths []string) (result []st
 
 func (rp *RouteParser) searchForType(name string, lines []string) string {
 	exp := "var " + name + " (.+)"
+	exp2 := name + " := (.+){"
 	bodyTypeRegex, _ := regexp.Compile(exp)
+	bodyTypeRegex2, _ := regexp.Compile(exp2)
 	for i := rp.LineNumber; i < len(lines); i++ {
 		lineText := lines[i]
 		typeResult := bodyTypeRegex.FindStringSubmatch(lineText)
+		if len(typeResult) > 1 {
+			return typeResult[1]
+		}
+
+		typeResult = bodyTypeRegex2.FindStringSubmatch(lineText)
 		if len(typeResult) > 1 {
 			return typeResult[1]
 		}
