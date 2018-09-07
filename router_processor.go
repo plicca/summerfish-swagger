@@ -31,8 +31,9 @@ type RouteHolder struct {
 }
 
 type NameType struct {
-	Name string
-	Type string
+	Name     string
+	Type     string
+	Children []NameType
 }
 
 func (rp *RouteParser) processHandler(handler http.Handler) {
@@ -57,14 +58,14 @@ func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
 		//Finds the end of the function
 		if lineText == "}" {
 			for i := range rh.Path {
-				rh.Path[i].Type = rp.searchForAll(rh.Path[i].Name, lines)
+				rh.Path[i] = rp.searchForAll(rh.Path[i].Name, lines)
 			}
 
 			for i := range rh.Query {
-				rh.Query[i].Type = rp.searchForAll(rh.Query[i].Name, lines)
+				rh.Query[i] = rp.searchForAll(rh.Query[i].Name, lines)
 			}
 			if len(rh.Body.Name) > 0 {
-				rh.Body.Type = rp.searchForAll(rh.Body.Name, lines)
+				rh.Body = rp.searchForAll(rh.Body.Name, lines)
 			}
 			return
 		}
@@ -88,33 +89,41 @@ func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
 	return
 }
 
-func (rp *RouteParser) searchForAll(name string, lines []string) string {
+func (rp *RouteParser) searchForAll(name string, lines []string) NameType {
 	varType := rp.searchForType(name, lines)
 	if len(varType) == 0 {
-		return "string"
+		return NameType{name, "string", nil}
 	}
 
 	if len(strings.Split(varType, ".")) <= 1 {
-		return varType
+		return NameType{name, varType, nil}
 	}
 
 	candidateSourceFiles, err := rp.searchForFullPath(varType, lines)
 	if err != nil {
-		return ""
+		return NameType{name, "", nil}
 	}
 
 	if len(candidateSourceFiles) > 0 {
-		fullStruct := rp.searchForStruct(varType, candidateSourceFiles)
-		return strings.Join(fullStruct, ",")
+
+		//search struct, all the children and children of children, and chil....
+
+		//fullStruct := rp.searchForStruct(varType, candidateSourceFiles)
+		//return strings.Join(fullStruct, ",")
+		return rp.searchForStruct(varType, candidateSourceFiles)
 	}
 
-	return ""
+	return NameType{name, "", nil}
 }
 
-func (rp *RouteParser) searchForStruct(name string, paths []string) (result []string) {
-	comp := "type " + strings.Split(name, ".")[1] + " struct"
-	exp := "json:\"(.+)\""
+func (rp *RouteParser) searchForStruct(name string, paths []string) (result NameType) {
+	structName := strings.Split(name, ".")[1]
+	comp := "type " + structName + " struct"
+	exp := "\\s*\\w+\\s+\\b(.+)\\b\\s+\\S*\\s*json:\"(.+)\""
 	bodyTypeRegex, _ := regexp.Compile(exp)
+
+	result.Name = structName
+
 	for _, path := range paths {
 		isFound := false
 		var file *os.File
@@ -130,11 +139,21 @@ func (rp *RouteParser) searchForStruct(name string, paths []string) (result []st
 				}
 				typeResult := bodyTypeRegex.FindStringSubmatch(lineText)
 				if len(typeResult) > 1 {
-					splitResult := strings.Split(typeResult[1], ",")
+					var varName string
+					var varType string
+
+					splitResult := strings.Split(typeResult[2], ",")
 					if len(splitResult) > 1 {
-						typeResult[1] = splitResult[0]
+						varName = splitResult[0]
 					}
-					result = append(result, typeResult[1])
+
+					varType = typeResult[1]
+					//se o tipo da variavel tiver um ponto é porque é uma struct é preciso ir procurar os seus filhos
+					if strings.Contains(varType, ".") {
+						//search for structure childrens
+					} else {
+						result.Children = append(result.Children, NameType{varName, varType, nil})
+					}
 				}
 			} else if strings.HasPrefix(lineText, comp) {
 				isFound = true
@@ -142,12 +161,15 @@ func (rp *RouteParser) searchForStruct(name string, paths []string) (result []st
 		}
 		file.Close()
 	}
+
+	//this means it doesn't found the struct in the candidated files. We should search the packages again!
 	return
 }
 
 func (rp *RouteParser) searchForType(name string, lines []string) string {
 	exp := "var " + name + " (.+)"
 	exp2 := name + " := (.+){"
+
 	bodyTypeRegex, _ := regexp.Compile(exp)
 	bodyTypeRegex2, _ := regexp.Compile(exp2)
 	for i := rp.LineNumber; i < len(lines); i++ {

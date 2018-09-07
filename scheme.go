@@ -33,8 +33,13 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 		if len(router.Body.Name) > 0 {
 			parameter := generateInputParameter("body", router.Body.Name, "object")
 			parameter.Schema = SchemaParameters{"object", map[string]SchemaParameters{}}
-			for _, name := range strings.Split(router.Body.Type, ",") {
-				parameter.Schema.Properties[name] = SchemaParameters{Type:"string"}
+
+			for _, param := range router.Body.Children {
+				if strings.Compare(param.Type, "string") == 0 {
+					parameter.Schema.Properties[param.Name] = SchemaParameters{Type: param.Type}
+				} else {
+					parameter.Schema.Properties[param.Name] = SchemaParameters{Type: "number"}
+				}
 			}
 
 			parameters = append(parameters, parameter)
@@ -44,8 +49,8 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 		paths[router.Route][strings.ToLower(router.Methods[0])] = Operation{
 			ID: router.Name, Summary: convertCamelCase(router.Name),
 			Parameters: parameters,
-			Tags: []string{tag},
-			Responses: map[string]string{},
+			Tags:       []string{tag},
+			Responses:  map[string]string{},
 		}
 	}
 	return paths
