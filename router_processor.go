@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"fmt"
 )
 
 type RouteParser struct {
@@ -181,7 +180,6 @@ func (rp *RouteParser) searchForFullPath(name string, lines []string) (result []
 			if err != nil {
 				return
 			}
-			fmt.Println(fullPath)
 
 			var files []os.FileInfo
 			files, err = ioutil.ReadDir(fullPath)
@@ -191,7 +189,7 @@ func (rp *RouteParser) searchForFullPath(name string, lines []string) (result []
 
 			for _, file := range files {
 				if strings.HasSuffix(file.Name(), ".go") {
-					path = append(path, fullPath+"/"+file.Name())
+					result = append(result, fullPath+"/"+file.Name())
 				}
 			}
 			return

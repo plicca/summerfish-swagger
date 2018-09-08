@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"os"
 	"github.com/plicca/summerfish-swagger/swaggerui"
+	"os"
 )
 
 type Method map[string]Operation
@@ -44,7 +44,10 @@ func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 
 		methods, err := route.GetMethods()
 		if err != nil {
-			return
+			if err.Error() != "mux: route doesn't have methods" {
+				return
+			}
+			err = nil
 		}
 
 		handler := route.Name(routeParser.Route).GetHandler()
