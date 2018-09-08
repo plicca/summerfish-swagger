@@ -13,6 +13,28 @@ type SchemeHolder struct {
 	Paths    PathsHolder `json:"paths"`
 }
 
+var jsonMapping = map[string]string{
+	"bool":       "true",
+	"string":     "string",
+	"int":        "number",
+	"int8":       "number",
+	"int16":      "number",
+	"int32":      "number",
+	"int64":      "number",
+	"uint":       "number",
+	"uint8":      "number",
+	"uint16":     "number",
+	"uint32":     "number",
+	"uint64":     "number",
+	"uintptr":    "number",
+	"byte":       "number",
+	"rune":       "number",
+	"float32":    "number",
+	"float64":    "number",
+	"complex64":  "number",
+	"complex128": "number",
+}
+
 func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 	paths := PathsHolder{}
 	for _, router := range routerHolders {
@@ -31,18 +53,20 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 		}
 
 		if len(router.Body.Name) > 0 {
-			parameter := generateInputParameter("body", router.Body.Name, "object")
-			parameter.Schema = SchemaParameters{"object", map[string]SchemaParameters{}}
+			//parameter := generateInputParameter("body", router.Body.Name, "object")
+			//parameter.Schema = SchemaParameters{"object", map[string]SchemaParameters{}}
+			//
+			//for _, param := range router.Body.Children {
+			//
+			//	mappedParamType,ok := jsonMapping[param.Type]
+			//	if !ok {
+			//		mappedParamType = param.Type
+			//	}
+			//
+			//	parameter.Schema.Properties[param.Name] = SchemaParameters{Type: mappedParamType}
+			//}
 
-			for _, param := range router.Body.Children {
-				if strings.Compare(param.Type, "string") == 0 {
-					parameter.Schema.Properties[param.Name] = SchemaParameters{Type: param.Type}
-				} else {
-					parameter.Schema.Properties[param.Name] = SchemaParameters{Type: "number"}
-				}
-			}
-
-			parameters = append(parameters, parameter)
+			parameters = append(parameters, mapBodyRoute(router.Body))
 		}
 
 		tag := strings.Split(router.Route, "/")[1]
@@ -54,6 +78,27 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 		}
 	}
 	return paths
+}
+
+func mapBodyRoute(bodyField NameType) (parameter InputParameter) {
+	parameter = generateInputParameter("body", bodyField.Name, "object")
+	parameter.Schema = SchemaParameters{"object", map[string]SchemaParameters{}}
+
+	for _, param := range bodyField.Children {
+
+		if len(param.Children) > 0 {
+
+			parameter.Schema.Properties[param.Name] = mapBodyRoute(param).Schema
+		} else {
+			mappedParamType, ok := jsonMapping[param.Type]
+			if !ok {
+				mappedParamType = param.Type
+			}
+			parameter.Schema.Properties[param.Name] = SchemaParameters{Type: mappedParamType}
+		}
+	}
+
+	return
 }
 
 func generateInputParameter(queryType, name, varType string) InputParameter {

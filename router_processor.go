@@ -36,6 +36,28 @@ type NameType struct {
 	Children []NameType
 }
 
+var nativeTypes = map[string]bool{
+	"bool":       true,
+	"string":     true,
+	"int":        true,
+	"int8":       true,
+	"int16":      true,
+	"int32":      true,
+	"int64":      true,
+	"uint":       true,
+	"uint8":      true,
+	"uint16":     true,
+	"uint32":     true,
+	"uint64":     true,
+	"uintptr":    true,
+	"byte":       true,
+	"rune":       true,
+	"float32":    true,
+	"float64":    true,
+	"complex64":  true,
+	"complex128": true,
+}
+
 func (rp *RouteParser) processHandler(handler http.Handler) {
 	ptr := runtime.FuncForPC(reflect.ValueOf(handler).Pointer())
 	rp.RelativePath = ptr.Name()
@@ -105,24 +127,25 @@ func (rp *RouteParser) searchForAll(name string, lines []string) NameType {
 	}
 
 	if len(candidateSourceFiles) > 0 {
-
-		//search struct, all the children and children of children, and chil....
-
-		//fullStruct := rp.searchForStruct(varType, candidateSourceFiles)
-		//return strings.Join(fullStruct, ",")
-		return rp.searchForStruct(varType, candidateSourceFiles)
+		return rp.searchForStruct(varType, "", candidateSourceFiles)
 	}
 
 	return NameType{name, "", nil}
 }
 
-func (rp *RouteParser) searchForStruct(name string, paths []string) (result NameType) {
-	structName := strings.Split(name, ".")[1]
+func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent string, paths []string) (result NameType) {
+	structInfo := strings.Split(name, ".")
+	structPackage := structInfo[0]
+	structName := structInfo[1]
 	comp := "type " + structName + " struct"
 	exp := "\\s*\\w+\\s+\\b(.+)\\b\\s+\\S*\\s*json:\"(.+)\""
 	bodyTypeRegex, _ := regexp.Compile(exp)
 
-	result.Name = structName
+	if len(childrenNameFromParent) > 0 {
+		result.Name = childrenNameFromParent
+	} else {
+		result.Name = structName
+	}
 
 	for _, path := range paths {
 		isFound := false
@@ -148,11 +171,20 @@ func (rp *RouteParser) searchForStruct(name string, paths []string) (result Name
 					}
 
 					varType = typeResult[1]
-					//se o tipo da variavel tiver um ponto é porque é uma struct é preciso ir procurar os seus filhos
-					if strings.Contains(varType, ".") {
-						//search for structure childrens
-					} else {
+					_, ok := nativeTypes[varType]
+					if ok {
 						result.Children = append(result.Children, NameType{varName, varType, nil})
+					} else {
+
+						var varType2 string
+						if !strings.Contains(varType, ".") {
+							varType2 = strings.Join([]string{structPackage, varType}, ".")
+						} else {
+							varType2 = varType
+						}
+
+						//search for structure childrens
+						result.Children = append(result.Children, rp.searchForStruct(varType2, varName, paths))
 					}
 				}
 			} else if strings.HasPrefix(lineText, comp) {
