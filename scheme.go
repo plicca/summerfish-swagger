@@ -53,19 +53,6 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 		}
 
 		if len(router.Body.Name) > 0 {
-			//parameter := generateInputParameter("body", router.Body.Name, "object")
-			//parameter.Schema = SchemaParameters{"object", map[string]SchemaParameters{}}
-			//
-			//for _, param := range router.Body.Children {
-			//
-			//	mappedParamType,ok := jsonMapping[param.Type]
-			//	if !ok {
-			//		mappedParamType = param.Type
-			//	}
-			//
-			//	parameter.Schema.Properties[param.Name] = SchemaParameters{Type: mappedParamType}
-			//}
-
 			parameters = append(parameters, mapBodyRoute(router.Body))
 		}
 
@@ -81,13 +68,11 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 }
 
 func mapBodyRoute(bodyField NameType) (parameter InputParameter) {
+
 	parameter = generateInputParameter("body", bodyField.Name, "object")
 	parameter.Schema = SchemaParameters{"object", map[string]SchemaParameters{}}
-
 	for _, param := range bodyField.Children {
-
 		if len(param.Children) > 0 {
-
 			parameter.Schema.Properties[param.Name] = mapBodyRoute(param).Schema
 		} else {
 			mappedParamType, ok := jsonMapping[param.Type]
@@ -97,7 +82,6 @@ func mapBodyRoute(bodyField NameType) (parameter InputParameter) {
 			parameter.Schema.Properties[param.Name] = SchemaParameters{Type: mappedParamType}
 		}
 	}
-
 	return
 }
 

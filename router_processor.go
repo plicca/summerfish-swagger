@@ -160,32 +160,10 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 					file.Close()
 					return
 				}
+
 				typeResult := bodyTypeRegex.FindStringSubmatch(lineText)
 				if len(typeResult) > 1 {
-					var varName string
-					var varType string
-
-					splitResult := strings.Split(typeResult[2], ",")
-					if len(splitResult) > 1 {
-						varName = splitResult[0]
-					}
-
-					varType = typeResult[1]
-					_, ok := nativeTypes[varType]
-					if ok {
-						result.Children = append(result.Children, NameType{varName, varType, nil})
-					} else {
-
-						var varType2 string
-						if !strings.Contains(varType, ".") {
-							varType2 = strings.Join([]string{structPackage, varType}, ".")
-						} else {
-							varType2 = varType
-						}
-
-						//search for structure childrens
-						result.Children = append(result.Children, rp.searchForStruct(varType2, varName, paths))
-					}
+					result.Children = append(result.Children, rp.findNativeType(structPackage, paths, typeResult))
 				}
 			} else if strings.HasPrefix(lineText, comp) {
 				isFound = true
@@ -193,9 +171,25 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 		}
 		file.Close()
 	}
-
-	//this means it doesn't found the struct in the candidated files. We should search the packages again!
 	return
+}
+
+func (rp *RouteParser) findNativeType(structPackage string, paths, typeResult []string) (output NameType) {
+
+	varType := typeResult[1]
+	splitResult := strings.Split(typeResult[2], ",")
+	varName := splitResult[0]
+	_, ok := nativeTypes[varType]
+	if ok {
+		return NameType{varName, varType, nil}
+	}
+
+	//appends package name if internal
+	if !strings.Contains(varType, ".") {
+		varType = strings.Join([]string{structPackage, varType}, ".")
+	}
+
+	return rp.searchForStruct(varType, varName, paths)
 }
 
 func (rp *RouteParser) searchForType(name string, lines []string) string {
