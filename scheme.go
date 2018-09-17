@@ -14,7 +14,7 @@ type SchemeHolder struct {
 }
 
 var jsonMapping = map[string]string{
-	"bool":       "true",
+	"bool":       "boolean",
 	"string":     "string",
 	"int":        "number",
 	"int8":       "number",
