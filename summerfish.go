@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/plicca/summerfish-swagger/swaggerui"
 	"os"
+	"strings"
 )
 
 type Method map[string]Operation
@@ -87,17 +88,72 @@ func generateFileMap(routeParsers []RouteParser) (sourceFiles map[string][]strin
 				return
 			}
 
-			var lines []string
-			scanner := bufio.NewScanner(file)
-			for scanner.Scan() {
-				lines = append(lines, scanner.Text())
-			}
+			sourceFiles[rp.FullPath] = convertFileToArrayOfLines(file)
 
 			file.Close()
-			sourceFiles[rp.FullPath] = lines
+
 		}
 	}
 	return
+}
+
+func convertFileToArrayOfLines(file *os.File) (lines []string) {
+
+	scanner := bufio.NewScanner(file)
+
+	commentSection := false
+	var line string
+
+	for scanner.Scan() {
+
+		//clean commented lines or sections
+		line, commentSection = CommentCleaner(scanner.Text(), commentSection)
+
+		//ignore blank lines
+		if len(line) > 0 && line != "\t" {
+			lines = append(lines, line)
+		}
+	}
+
+	return lines
+
+}
+
+func CommentCleaner(line string, commentSection bool) (string, bool) {
+
+	if commentSection {
+		if !strings.Contains(line, "*/") {
+			return "", commentSection
+		}
+		line = strings.SplitN(line, "*/", 2)[1]
+		commentSection = false
+	}
+
+	for {
+		if !strings.Contains(line, "/*") {
+			break
+		}
+		line, commentSection = RemoveCommentSection(line)
+	}
+
+	if strings.Contains(line, "//") {
+		line = strings.SplitN(line, "//", 2)[0]
+	}
+
+	return line, commentSection
+}
+
+func RemoveCommentSection(line string) (string, bool) {
+
+	lineSections := strings.SplitN(line, "/*", 2)
+	line = lineSections[0]
+
+	if strings.Contains(lineSections[1], "*/") {
+		line = line + "" + strings.SplitN(lineSections[1], "*/", 2)[1]
+		return line, false
+	}
+
+	return line, true
 }
 
 func (s *SchemeHolder) GenerateSwaggerFile(routes []RouteHolder, filePath string) (err error) {
