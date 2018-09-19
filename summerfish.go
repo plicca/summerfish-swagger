@@ -110,7 +110,7 @@ func convertFileToArrayOfLines(file *os.File) (lines []string) {
 		line, commentSection = CommentCleaner(scanner.Text(), commentSection)
 
 		//ignore blank lines
-		if len(line) > 0 && line != "\t" {
+		if line != "\t" {
 			lines = append(lines, line)
 		}
 	}

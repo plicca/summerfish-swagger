@@ -152,9 +152,14 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 		var file *os.File
 		file, _ = os.Open(path)
 
+		commentSection := false
+
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			lineText := scanner.Text()
+
+			lineText, commentSection = CommentCleaner(lineText, commentSection)
+
 			if isFound {
 				if lineText == "}" {
 					file.Close()
