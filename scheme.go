@@ -1,7 +1,6 @@
 package summerfish
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -54,7 +53,7 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 		}
 
 		if len(router.Body.Name) > 0 {
-			parameters = append(parameters, mapBodyRoute(router.Body, true))
+			parameters = append(parameters, mapBodyRoute(router.Body))
 		}
 
 		tag := strings.Split(router.Route, "/")[1]
@@ -68,43 +67,39 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 	return paths
 }
 
-func mapBodyRoute(bodyField NameType, first bool) (parameter InputParameter) {
+func mapBodyRoute(bodyField NameType) (result InputParameter) {
+	result = generateInputParameter("body", bodyField.Name, "object")
+	result.Schema = SchemaParameters{Type: "object", Properties: map[string]SchemaParameters{}}
+	params := make(map[string]SchemaParameters)
 
-	parameter = generateInputParameter("body", bodyField.Name, "object")
-	fmt.Println(bodyField)
-	fmt.Println(bodyField.IsArray)
-
-	parameter.Schema = SchemaParameters{"object", nil, map[string]SchemaParameters{}}
-	props := make(map[string]SchemaParameters)
-	for _, param := range bodyField.Children {
-		if len(param.Children) > 0 {
-			//fmt.Println("aqui")
-			props = mapBodyRoute2(param, parameter.Schema)
+	for _, child := range bodyField.Children {
+		if len(child.Children) > 0 {
+			params = mapInternalParameters(child, params)
 		} else {
-			mappedParamType, ok := jsonMapping[param.Type]
+			mappedParamType, ok := jsonMapping[child.Type]
 			if !ok {
-				mappedParamType = param.Type
+				mappedParamType = child.Type
 			}
 
-			props[param.Name] = SchemaParameters{Type: mappedParamType}
+			params[child.Name] = SchemaParameters{Type: mappedParamType}
 		}
 	}
+
 	if bodyField.IsArray {
-		items := &SchemaParameters{Type: "object", Properties: props}
+		items := &SchemaParameters{Type: "object", Properties: params}
 		array := SchemaParameters{Type: "array", Items: items}
-		props = map[string]SchemaParameters{bodyField.Name: array}
+		params = map[string]SchemaParameters{bodyField.Name: array}
 	}
 
-	parameter.Schema.Properties = props
+	result.Schema.Properties = params
 	return
 }
 
-func mapBodyRoute2(bodyField NameType, s SchemaParameters) (map[string]SchemaParameters) {
+func mapInternalParameters(bodyField NameType, s map[string]SchemaParameters) (map[string]SchemaParameters) {
 	props := make(map[string]SchemaParameters)
 	for _, param := range bodyField.Children {
 		if len(param.Children) > 0 {
-			fmt.Println("NAO")
-			props = mapBodyRoute2(param, s)
+			props = mapInternalParameters(param, s)
 		} else {
 			mappedParamType, ok := jsonMapping[param.Type]
 			if !ok {
@@ -117,8 +112,8 @@ func mapBodyRoute2(bodyField NameType, s SchemaParameters) (map[string]SchemaPar
 
 	if bodyField.IsArray {
 		items := &SchemaParameters{Type: "object", Properties: props}
-		array := SchemaParameters{Type: "array", Items: items}
-		return map[string]SchemaParameters{bodyField.Name: array}
+		s[bodyField.Name] = SchemaParameters{Type: "array", Items: items}
+		return s
 	}
 	return props
 }

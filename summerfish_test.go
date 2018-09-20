@@ -125,7 +125,7 @@ func TestProcessArrayVars(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := mapBodyRoute(tt.args.lines, true)
+			result := mapBodyRoute(tt.args.lines)
 /*			fmt.Printf("%+v\n", result)*/
 
 			op := Operation{
