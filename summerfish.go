@@ -31,7 +31,7 @@ type Operation struct {
 
 type SchemaParameters struct {
 	Type       string                      `json:"type"`
-	Items      *SchemaParameters          `json:"items,omitempty"`
+	Items      *SchemaParameters `json:"items,omitempty"`
 	Properties map[string]SchemaParameters `json:"properties,omitempty"`
 }
 

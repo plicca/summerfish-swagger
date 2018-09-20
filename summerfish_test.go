@@ -1,7 +1,9 @@
 package summerfish
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -93,6 +95,55 @@ func TestProcessBodyVars(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := routeParser.processSourceFiles(tt.args.lines)
 			fmt.Println(result)
+		})
+	}
+}
+
+func TestProcessArrayVars(t *testing.T) {
+	type args struct {
+		lines NameType
+	}
+	tests := []struct {
+		name   string
+		args   args
+		result []string
+	}{
+		{
+			"Process Body Parameters",
+			args{NameType{
+				Name:    "Client",
+				IsArray: false,
+				Children: []NameType{
+					{Name: "Addresses", Type: "string", IsArray: true, Children: []NameType{{Name:"city", Type: "string"}, {Name:"country", Type: "string"}}},
+					{Name: "cenas", Type: "string"},
+					//{Name: "cenas", Type: "desconhecido", Children: []},
+				},
+			},
+			},
+			[]string{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := mapBodyRoute(tt.args.lines, true)
+/*			fmt.Printf("%+v\n", result)*/
+
+			op := Operation{
+				ID:         "Something",
+				Summary:    convertCamelCase("Something"),
+				Parameters: []InputParameter{result},
+				Tags:       []string{"TAG"},
+				Responses:  map[string]string{},
+			}
+
+			encoded, err := json.Marshal(op)
+			if err != nil {
+				return
+			}
+			if !strings.Contains(string(encoded), "cenas") {
+				t.Fatal(string(encoded))
+			}
+			fmt.Println(string(encoded))
 		})
 	}
 }
