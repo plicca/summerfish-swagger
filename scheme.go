@@ -70,16 +70,37 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 func mapBodyRoute(bodyField NameType) (parameter InputParameter) {
 
 	parameter = generateInputParameter("body", bodyField.Name, "object")
-	parameter.Schema = SchemaParameters{"object", map[string]SchemaParameters{}}
+
+	if bodyField.IsArray {
+		parameter.Schema = SchemaParameters{"array", &SchemaParameters{}, map[string]SchemaParameters{}}
+	} else {
+		parameter.Schema = SchemaParameters{Type: "object", Properties: map[string]SchemaParameters{}}
+	}
+
 	for _, param := range bodyField.Children {
 		if len(param.Children) > 0 {
-			parameter.Schema.Properties[param.Name] = mapBodyRoute(param).Schema
+			if bodyField.IsArray {
+				*parameter.Schema.Items = (mapBodyRoute(param).Schema)
+
+			} else {
+				parameter.Schema.Properties[param.Name] = mapBodyRoute(param).Schema
+			}
+
 		} else {
 			mappedParamType, ok := jsonMapping[param.Type]
 			if !ok {
 				mappedParamType = param.Type
 			}
-			parameter.Schema.Properties[param.Name] = SchemaParameters{Type: mappedParamType}
+
+			if bodyField.IsArray {
+				//parameter.Schema.Properties[param.Name] = SchemaParameters{"array", map[string]SchemaParameters{}}
+				//parameter.Schema.Items = &SchemaParameters{Type: "object", Properties: map[string]SchemaParameters{}}
+				//parameter.Schema.Items.Properties[param.Name] = SchemaParameters{Type: mappedParamType}
+
+			} else {
+				parameter.Schema.Properties[param.Name] = SchemaParameters{Type: mappedParamType}
+			}
+
 		}
 	}
 	return
