@@ -70,43 +70,18 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 func mapBodyRoute(bodyField NameType) (result InputParameter) {
 	result = generateInputParameter("body", bodyField.Name, "object")
 	result.Schema = SchemaParameters{Type: "object", Properties: map[string]SchemaParameters{}}
-	params := make(map[string]SchemaParameters)
 
-	//params = mapInternalParameters(bodyField, params)
-	for _, child := range bodyField.Children {
-		if len(child.Children) > 0 {
-			childEntry := params[child.Name]
-			childEntry.Properties = mapInternalParameters(child, params)
-		} else {
-			mappedParamType, ok := jsonMapping[child.Type]
-			if !ok {
-				mappedParamType = child.Type
-			}
+	result.Schema = mapInternalParameters(bodyField)
 
-			if child.IsArray {
-				params[child.Name] = SchemaParameters{Type: "array", Items: &SchemaParameters{Type: mappedParamType}}
-			} else {
-				params[child.Name] = SchemaParameters{Type: mappedParamType}
-			}
-		}
-	}
-
-	if bodyField.IsArray {
-		items := &SchemaParameters{Type: "object", Properties: params}
-		array := SchemaParameters{Type: "array", Items: items}
-		params = map[string]SchemaParameters{bodyField.Name: array}
-	}
-
-	result.Schema.Properties = params
 	return
 }
 
-func mapInternalParameters(bodyField NameType, s map[string]SchemaParameters) (map[string]SchemaParameters) {
+func mapInternalParameters(bodyField NameType) (SchemaParameters) {
 	props := make(map[string]SchemaParameters)
 	for _, param := range bodyField.Children {
 		if len(param.Children) > 0 {
-			paramEntry := props[param.Name]
-			paramEntry.Properties = mapInternalParameters(param, s)
+			props[param.Name] = mapInternalParameters(param)
+
 		} else {
 			mappedParamType, ok := jsonMapping[param.Type]
 			if !ok {
@@ -123,12 +98,10 @@ func mapInternalParameters(bodyField NameType, s map[string]SchemaParameters) (m
 
 	if bodyField.IsArray {
 		items := &SchemaParameters{Type: "object", Properties: props}
-		s[bodyField.Name] = SchemaParameters{Type: "array", Items: items}
-		return s
+		return SchemaParameters{Type: "array", Items: items}
 	}
 
-	s[bodyField.Name] = SchemaParameters{Type: "object", Properties: props}
-	return props
+	return SchemaParameters{Type: "object", Properties: props}
 }
 
 func generateInputParameter(queryType, name, varType string) InputParameter {
