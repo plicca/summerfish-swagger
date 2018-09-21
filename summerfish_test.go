@@ -106,7 +106,7 @@ func TestProcessArrayVars(t *testing.T) {
 	tests := []struct {
 		name   string
 		args   args
-		result []string
+		result string
 	}{
 		{
 			"Process Body Parameters",
@@ -114,19 +114,23 @@ func TestProcessArrayVars(t *testing.T) {
 				Name:    "Client",
 				IsArray: false,
 				Children: []NameType{
-					{Name: "Addresses", Type: "string", IsArray: true, Children: []NameType{{Name:"city", Type: "string"}, {Name:"country", Type: "string"}}},
-					{Name: "cenas", Type: "string"},
-					//{Name: "cenas", Type: "desconhecido", Children: []},
+					{Name: "prop1", Type: "type1", IsArray: true, Children: []NameType{{Name: "prop1_1", Type: "string"}, {Name: "prop1_2", Type: "string"}, {Name: "prop1_3", Type: "number"}}},
+					{Name: "prop2", Type: "number"},
+					{Name: "prop3", Type: "type2", IsArray: true, Children: []NameType{{Name: "prop3_1", Type: "string"}, {Name: "prop3_2", Type: "string"}, {Name: "prop3_3", Type: "number"}, {Name: "prop3_4", Type: "string"}}},
+					{Name: "prop4", Type: "string"},
+					{Name: "prop5", Type: "string"},
+					{Name: "prop6", Type: "string", IsArray: true},
+					{Name: "prop7", Type: "type3", IsArray: true, Children: []NameType{{Name: "prop7_1", Type: "string"}, {Name: "prop7_2", Type: "string"}, {Name: "prop7_3", Type: "number"}}},
 				},
 			},
 			},
-			[]string{},
+			"\"schema\":{\"type\":\"object\",\"properties\":{\"prop1\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"prop1_1\":{\"type\":\"string\"},\"prop1_2\":{\"type\":\"string\"},\"prop1_3\":{\"type\":\"number\"}}}},\"prop2\":{\"type\":\"number\"},\"prop3\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"prop3_1\":{\"type\":\"string\"},\"prop3_2\":{\"type\":\"string\"},\"prop3_3\":{\"type\":\"number\"},\"prop3_4\":{\"type\":\"string\"}}}},\"prop4\":{\"type\":\"string\"},\"prop5\":{\"type\":\"string\"},\"prop6\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"prop7\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"prop7_1\":{\"type\":\"string\"},\"prop7_2\":{\"type\":\"string\"},\"prop7_3\":{\"type\":\"number\"}}}}}}",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := mapBodyRoute(tt.args.lines)
-/*			fmt.Printf("%+v\n", result)*/
+			/*			fmt.Printf("%+v\n", result)*/
 
 			op := Operation{
 				ID:         "Something",
@@ -140,8 +144,10 @@ func TestProcessArrayVars(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if !strings.Contains(string(encoded), "cenas") {
-				t.Fatal(string(encoded))
+			fmt.Println(strings.Split(string(encoded), "schema")[1])
+			fmt.Println(strings.Split(tt.result, "schema")[1])
+			if !strings.Contains(string(encoded), tt.result) {
+				t.Fatal(string(encoded), tt.result)
 			}
 			fmt.Println(string(encoded))
 		})

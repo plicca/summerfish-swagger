@@ -81,7 +81,11 @@ func mapBodyRoute(bodyField NameType) (result InputParameter) {
 				mappedParamType = child.Type
 			}
 
-			params[child.Name] = SchemaParameters{Type: mappedParamType}
+			if child.IsArray {
+				params[child.Name] = SchemaParameters{Type: "array", Items: &SchemaParameters{Type: mappedParamType}}
+			}else{
+				params[child.Name] = SchemaParameters{Type: mappedParamType}
+			}
 		}
 	}
 
@@ -106,7 +110,11 @@ func mapInternalParameters(bodyField NameType, s map[string]SchemaParameters) (m
 				mappedParamType = param.Type
 			}
 
-			props[param.Name] = SchemaParameters{Type: mappedParamType}
+			if param.IsArray {
+				props[param.Name] = SchemaParameters{Type: "array", Items: &SchemaParameters{Type: mappedParamType}}
+			}else{
+				props[param.Name] = SchemaParameters{Type: mappedParamType}
+			}
 		}
 	}
 
