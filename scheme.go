@@ -69,10 +69,7 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 
 func mapBodyRoute(bodyField NameType) (result InputParameter) {
 	result = generateInputParameter("body", bodyField.Name, "object")
-	result.Schema = SchemaParameters{Type: "object", Properties: map[string]SchemaParameters{}}
-
 	result.Schema = mapInternalParameters(bodyField)
-
 	return
 }
 
