@@ -14,7 +14,7 @@ type SchemeHolder struct {
 }
 
 var jsonMapping = map[string]string{
-	"bool":       "true",
+	"bool":       "boolean",
 	"string":     "string",
 	"int":        "number",
 	"int8":       "number",
@@ -67,22 +67,38 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 	return paths
 }
 
-func mapBodyRoute(bodyField NameType) (parameter InputParameter) {
+func mapBodyRoute(bodyField NameType) (result InputParameter) {
+	result = generateInputParameter("body", bodyField.Name, "object")
+	result.Schema = mapInternalParameters(bodyField)
+	return
+}
 
-	parameter = generateInputParameter("body", bodyField.Name, "object")
-	parameter.Schema = SchemaParameters{"object", map[string]SchemaParameters{}}
+func mapInternalParameters(bodyField NameType) (SchemaParameters) {
+	props := make(map[string]SchemaParameters)
 	for _, param := range bodyField.Children {
 		if len(param.Children) > 0 {
-			parameter.Schema.Properties[param.Name] = mapBodyRoute(param).Schema
+			props[param.Name] = mapInternalParameters(param)
+
 		} else {
 			mappedParamType, ok := jsonMapping[param.Type]
 			if !ok {
 				mappedParamType = param.Type
 			}
-			parameter.Schema.Properties[param.Name] = SchemaParameters{Type: mappedParamType}
+
+			if param.IsArray {
+				props[param.Name] = SchemaParameters{Type: "array", Items: &SchemaParameters{Type: mappedParamType}}
+			} else {
+				props[param.Name] = SchemaParameters{Type: mappedParamType}
+			}
 		}
 	}
-	return
+
+	if bodyField.IsArray {
+		items := &SchemaParameters{Type: "object", Properties: props}
+		return SchemaParameters{Type: "array", Items: items}
+	}
+
+	return SchemaParameters{Type: "object", Properties: props}
 }
 
 func generateInputParameter(queryType, name, varType string) InputParameter {

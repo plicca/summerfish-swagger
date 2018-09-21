@@ -33,6 +33,7 @@ type RouteHolder struct {
 type NameType struct {
 	Name     string
 	Type     string
+	IsArray  bool
 	Children []NameType
 }
 
@@ -114,31 +115,31 @@ func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
 func (rp *RouteParser) searchForAll(name string, lines []string) NameType {
 	varType := rp.searchForType(name, lines)
 	if len(varType) == 0 {
-		return NameType{name, "string", nil}
+		return NameType{Name: name, Type: "string"}
 	}
 
 	if len(strings.Split(varType, ".")) <= 1 {
-		return NameType{name, varType, nil}
+		return NameType{Name: name, Type: varType}
 	}
 
 	candidateSourceFiles, err := rp.searchForFullPath(varType, lines)
 	if err != nil {
-		return NameType{name, "", nil}
+		return NameType{Name: name, Type: ""}
 	}
 
 	if len(candidateSourceFiles) > 0 {
-		return rp.searchForStruct(varType, "", candidateSourceFiles)
+		return rp.searchForStruct(varType, "", candidateSourceFiles, false)
 	}
 
-	return NameType{name, "", nil}
+	return NameType{Name: name, Type: ""}
 }
 
-func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent string, paths []string) (result NameType) {
+func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent string, paths []string, isArray bool) (result NameType) {
 	structInfo := strings.Split(name, ".")
 	structPackage := structInfo[0]
 	structName := structInfo[1]
 	comp := "type " + structName + " struct"
-	exp := "\\s*\\w+\\s+\\b(.+)\\b\\s+\\S*\\s*json:\"(.+)\""
+	exp := "\\s*\\w+\\s+(.+)\\b\\s+\\S*\\s*json:\"(.+)\""
 	bodyTypeRegex, _ := regexp.Compile(exp)
 
 	if len(childrenNameFromParent) > 0 {
@@ -147,14 +148,21 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 		result.Name = structName
 	}
 
+	result.IsArray = isArray
+
 	for _, path := range paths {
 		isFound := false
 		var file *os.File
 		file, _ = os.Open(path)
 
+		commentSection := false
+
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			lineText := scanner.Text()
+
+			lineText, commentSection = CommentCleaner(lineText, commentSection)
+
 			if isFound {
 				if lineText == "}" {
 					file.Close()
@@ -179,9 +187,18 @@ func (rp *RouteParser) findNativeType(structPackage string, paths, typeResult []
 	varType := typeResult[1]
 	splitResult := strings.Split(typeResult[2], ",")
 	varName := splitResult[0]
+
+	isArray := false
+
+	//Array verification
+	if strings.HasPrefix(varType, "[]") {
+		isArray = true
+		varType = strings.SplitN(varType, "]", 2)[1]
+	}
+
 	_, ok := nativeTypes[varType]
 	if ok {
-		return NameType{varName, varType, nil}
+		return NameType{varName, varType, isArray, nil}
 	}
 
 	//appends package name if internal
@@ -189,7 +206,7 @@ func (rp *RouteParser) findNativeType(structPackage string, paths, typeResult []
 		varType = strings.Join([]string{structPackage, varType}, ".")
 	}
 
-	return rp.searchForStruct(varType, varName, paths)
+	return rp.searchForStruct(varType, varName, paths, isArray)
 }
 
 func (rp *RouteParser) searchForType(name string, lines []string) string {
