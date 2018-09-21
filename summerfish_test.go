@@ -121,10 +121,11 @@ func TestProcessArrayVars(t *testing.T) {
 					{Name: "prop5", Type: "string"},
 					{Name: "prop6", Type: "string", IsArray: true},
 					{Name: "prop7", Type: "type3", IsArray: true, Children: []NameType{{Name: "prop7_1", Type: "string"}, {Name: "prop7_2", Type: "string"}, {Name: "prop7_3", Type: "number"}}},
+					{Name: "prop8", Type: "type2", IsArray: false, Children: []NameType{{Name: "prop8_1", Type: "string"}, {Name: "prop8_2", Type: "string"}, {Name: "prop8_3", Type: "number"}, {Name: "prop8_4", Type: "string"}}},
 				},
 			},
 			},
-			"\"schema\":{\"type\":\"object\",\"properties\":{\"prop1\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"prop1_1\":{\"type\":\"string\"},\"prop1_2\":{\"type\":\"string\"},\"prop1_3\":{\"type\":\"number\"}}}},\"prop2\":{\"type\":\"number\"},\"prop3\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"prop3_1\":{\"type\":\"string\"},\"prop3_2\":{\"type\":\"string\"},\"prop3_3\":{\"type\":\"number\"},\"prop3_4\":{\"type\":\"string\"}}}},\"prop4\":{\"type\":\"string\"},\"prop5\":{\"type\":\"string\"},\"prop6\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"prop7\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"prop7_1\":{\"type\":\"string\"},\"prop7_2\":{\"type\":\"string\"},\"prop7_3\":{\"type\":\"number\"}}}}}}",
+			"\"schema\":{\"type\":\"object\",\"properties\":{\"prop1\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"prop1_1\":{\"type\":\"string\"},\"prop1_2\":{\"type\":\"string\"},\"prop1_3\":{\"type\":\"number\"}}}},\"prop2\":{\"type\":\"number\"},\"prop3\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"prop3_1\":{\"type\":\"string\"},\"prop3_2\":{\"type\":\"string\"},\"prop3_3\":{\"type\":\"number\"},\"prop3_4\":{\"type\":\"string\"}}}},\"prop4\":{\"type\":\"string\"},\"prop5\":{\"type\":\"string\"},\"prop6\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"prop7\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"prop7_1\":{\"type\":\"string\"},\"prop7_2\":{\"type\":\"string\"},\"prop7_3\":{\"type\":\"number\"}}}},\"prop8\":{\"type\":\"object\",\"properties\":{\"prop8_1\":{\"type\":\"string\"},\"prop8_2\":{\"type\":\"string\"},\"prop8_3\":{\"type\":\"number\"},\"prop8_4\":{\"type\":\"string\"}}}}}",
 		},
 	}
 	for _, tt := range tests {

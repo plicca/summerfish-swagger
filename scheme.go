@@ -72,9 +72,11 @@ func mapBodyRoute(bodyField NameType) (result InputParameter) {
 	result.Schema = SchemaParameters{Type: "object", Properties: map[string]SchemaParameters{}}
 	params := make(map[string]SchemaParameters)
 
+	//params = mapInternalParameters(bodyField, params)
 	for _, child := range bodyField.Children {
 		if len(child.Children) > 0 {
-			params = mapInternalParameters(child, params)
+			childEntry := params[child.Name]
+			childEntry.Properties = mapInternalParameters(child, params)
 		} else {
 			mappedParamType, ok := jsonMapping[child.Type]
 			if !ok {
@@ -83,7 +85,7 @@ func mapBodyRoute(bodyField NameType) (result InputParameter) {
 
 			if child.IsArray {
 				params[child.Name] = SchemaParameters{Type: "array", Items: &SchemaParameters{Type: mappedParamType}}
-			}else{
+			} else {
 				params[child.Name] = SchemaParameters{Type: mappedParamType}
 			}
 		}
@@ -103,7 +105,8 @@ func mapInternalParameters(bodyField NameType, s map[string]SchemaParameters) (m
 	props := make(map[string]SchemaParameters)
 	for _, param := range bodyField.Children {
 		if len(param.Children) > 0 {
-			props = mapInternalParameters(param, s)
+			paramEntry := props[param.Name]
+			paramEntry.Properties = mapInternalParameters(param, s)
 		} else {
 			mappedParamType, ok := jsonMapping[param.Type]
 			if !ok {
@@ -112,7 +115,7 @@ func mapInternalParameters(bodyField NameType, s map[string]SchemaParameters) (m
 
 			if param.IsArray {
 				props[param.Name] = SchemaParameters{Type: "array", Items: &SchemaParameters{Type: mappedParamType}}
-			}else{
+			} else {
 				props[param.Name] = SchemaParameters{Type: mappedParamType}
 			}
 		}
@@ -123,6 +126,8 @@ func mapInternalParameters(bodyField NameType, s map[string]SchemaParameters) (m
 		s[bodyField.Name] = SchemaParameters{Type: "array", Items: items}
 		return s
 	}
+
+	s[bodyField.Name] = SchemaParameters{Type: "object", Properties: props}
 	return props
 }
 
