@@ -37,16 +37,20 @@ type SchemaParameters struct {
 
 func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 	var routeParsers []RouteParser
+
 	err = r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) (err error) {
 		routeParser := RouteParser{}
 		routeParser.Route, err = route.GetPathTemplate()
 		if err != nil {
+			if err.Error() == "mux: route doesn't have a path" {
+				err = nil
+			}
 			return
 		}
 
 		methods, err := route.GetMethods()
 		if err != nil {
-			if err.Error() != "mux: route doesn't have methods" {
+			if err.Error() != "mux: route doesn't have methods"  {
 				return
 			}
 			err = nil
