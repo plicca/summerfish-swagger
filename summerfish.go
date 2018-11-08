@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/plicca/summerfish-swagger/swaggerui"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -31,9 +33,12 @@ type Operation struct {
 
 type SchemaParameters struct {
 	Type       string                      `json:"type"`
-	Items      *SchemaParameters `json:"items,omitempty"`
+	Items      *SchemaParameters           `json:"items,omitempty"`
 	Properties map[string]SchemaParameters `json:"properties,omitempty"`
 }
+
+const SwaggerFileRoute = "/swagger.json"
+const SwaggerUIRoute = "/swagger-ui/"
 
 func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 	var routeParsers []RouteParser
@@ -50,7 +55,7 @@ func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 
 		methods, err := route.GetMethods()
 		if err != nil {
-			if err.Error() != "mux: route doesn't have methods"  {
+			if err.Error() != "mux: route doesn't have methods" {
 				return
 			}
 			err = nil
@@ -94,23 +99,17 @@ func generateFileMap(routeParsers []RouteParser) (sourceFiles map[string][]strin
 			}
 
 			sourceFiles[rp.FullPath] = convertFileToArrayOfLines(file)
-
 			file.Close()
-
 		}
 	}
 	return
 }
 
 func convertFileToArrayOfLines(file *os.File) (lines []string) {
-
 	scanner := bufio.NewScanner(file)
-
 	commentSection := false
 	var line string
-
 	for scanner.Scan() {
-
 		//clean commented lines or sections
 		line, commentSection = CommentCleaner(scanner.Text(), commentSection)
 
@@ -121,11 +120,9 @@ func convertFileToArrayOfLines(file *os.File) (lines []string) {
 	}
 
 	return lines
-
 }
 
 func CommentCleaner(line string, commentSection bool) (string, bool) {
-
 	if commentSection {
 		if !strings.Contains(line, "*/") {
 			return "", commentSection
@@ -149,10 +146,8 @@ func CommentCleaner(line string, commentSection bool) (string, bool) {
 }
 
 func RemoveCommentSection(line string) (string, bool) {
-
 	lineSections := strings.SplitN(line, "/*", 2)
 	line = lineSections[0]
-
 	if strings.Contains(lineSections[1], "*/") {
 		line = line + "" + strings.SplitN(lineSections[1], "*/", 2)[1]
 		return line, false
@@ -174,22 +169,40 @@ func (s *SchemeHolder) GenerateSwaggerFile(routes []RouteHolder, filePath string
 	}
 
 	defer f.Close()
-	f.Write(encoded)
+	_, err = f.Write(encoded)
 	return
 }
 
-func AddSwaggerUIEndpoints(router *mux.Router, swaggerPath string) (err error) {
-	fileHandler, err := swaggerui.FileHandler(swaggerPath)
+type Config struct {
+	SwaggerFilePath  string
+	SwaggerFileRoute string
+	SwaggerUIRoute   string
+}
+
+func AddSwaggerUIEndpoints(router *mux.Router, config Config) (err error) {
+	fileHandler, err := swaggerui.FileHandler(config.SwaggerFilePath)
 	if err != nil {
 		return
 	}
 
-	uiHandler, err := swaggerui.UIHandler()
+	err = updateIndexFile(config.SwaggerFileRoute)
 	if err != nil {
 		return
 	}
 
-	router.Handle(swaggerui.SwaggerPath, fileHandler)
-	router.PathPrefix("/swagger-ui/").Handler(uiHandler)
+	router.Handle(config.SwaggerFileRoute, fileHandler)
+	router.PathPrefix(config.SwaggerUIRoute).Handler(http.StripPrefix(config.SwaggerUIRoute, http.FileServer(http.Dir("swaggerui/swagger-ui/"))))
 	return
+}
+
+func updateIndexFile(path string) (err error) {
+	input, err := ioutil.ReadFile("swaggerui/swagger-ui/index.html")
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(string(input), "\n")
+	lines[76] = "url: \"" + path + "\","
+	output := strings.Join(lines, "\n")
+	return ioutil.WriteFile("swaggerui/swagger-ui/index.html", []byte(output), 0644)
 }

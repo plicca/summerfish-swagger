@@ -1,21 +1,20 @@
 package main
 
 import (
-	"log"
-	"github.com/gorilla/mux"
-	"path/filepath"
-	"github.com/plicca/summerfish-swagger"
-	"net/http"
 	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/plicca/summerfish-swagger"
+	"log"
+	"net/http"
+	"path/filepath"
 )
 
 const port = ":8080"
 
-
 func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/test/{tokenId}", GetStoryAuthorization).Methods("GET")
-	err := GenerateSwaggerDocsAndEndpoints(router, "localhost" + port)
+	err := GenerateSwaggerDocsAndEndpoints(router, "localhost"+port)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -31,7 +30,7 @@ func GetStoryAuthorization(w http.ResponseWriter, r *http.Request) {
 }
 
 func GenerateSwaggerDocsAndEndpoints(router *mux.Router, endpoint string) (err error) {
-	swaggerPath, err :=filepath.Abs("example/swagger.json")
+	swaggerPath, err := filepath.Abs("example/swagger.json")
 	if err != nil {
 		return
 	}
@@ -48,5 +47,11 @@ func GenerateSwaggerDocsAndEndpoints(router *mux.Router, endpoint string) (err e
 	}
 
 	log.Println("Swagger documentation generated")
-	return summerfish.AddSwaggerUIEndpoints(router, swaggerPath)
+	config := summerfish.Config{
+		SwaggerFilePath:  swaggerPath,
+		SwaggerFileRoute: summerfish.SwaggerFileRoute,
+		SwaggerUIRoute:   "/docs/",
+	}
+
+	return summerfish.AddSwaggerUIEndpoints(router, config)
 }
