@@ -9,15 +9,6 @@ import (
 	"time"
 )
 
-// FileHandler returns an HTTP handler that serves the swagger.json file
-func fileHandler(swaggerPath string) (http.Handler, error) {
-	data, err := os.Open(swaggerPath)
-	if err != nil {
-		return nil, err
-	}
-	return &handler{modTime: time.Now(), body: data}, nil
-}
-
 type handler struct {
 	modTime time.Time
 	body    io.ReadSeeker
@@ -25,6 +16,15 @@ type handler struct {
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "Swagger json spec", h.modTime, h.body)
+}
+
+// FileHandler returns an HTTP handler that serves the swagger.json file
+func fileHandler(swaggerPath string) (http.Handler, error) {
+	data, err := os.Open(swaggerPath)
+	if err != nil {
+		return nil, err
+	}
+	return &handler{modTime: time.Now(), body: data}, nil
 }
 
 func updateIndexFile(path, route string) (err error) {

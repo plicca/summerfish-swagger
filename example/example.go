@@ -34,7 +34,7 @@ func GenerateSwaggerDocsAndEndpoints(router *mux.Router, endpoint string) (err e
 		Schemes:          []string{"http", "https"},
 		SwaggerFileRoute: summerfish.SwaggerFileRoute,
 		SwaggerUIRoute:   "docs/",
-		BaseRoute: "/",
+		BaseRoute:        "/",
 	}
 
 	config.SwaggerFilePath, err = filepath.Abs("example/swagger.json")
