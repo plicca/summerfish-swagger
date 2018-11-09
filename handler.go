@@ -35,7 +35,7 @@ func updateIndexFile(path, route string) (err error) {
 	}
 
 	lines := strings.Split(string(input), "\n")
-	lines[76] = "url: \"" + route + "\","
+	lines[41] = "url: \"" + route + "\","
 	output := strings.Join(lines, "\n")
 	return ioutil.WriteFile(filePath, []byte(output), 0644)
 }
