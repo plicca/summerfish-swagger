@@ -3,9 +3,11 @@ package summerfish
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 )
 
@@ -189,7 +191,10 @@ func AddSwaggerUIEndpoints(router *mux.Router, config Config) (err error) {
 		return
 	}
 
+	path := reflect.TypeOf(config).PkgPath()
+	fmt.Println(path)
+
 	router.Handle(config.SwaggerFileRoute, fileHandler)
-	router.PathPrefix(config.SwaggerUIRoute).Handler(http.StripPrefix(config.SwaggerUIRoute, http.FileServer(http.Dir("swaggerui/"))))
+	router.PathPrefix(config.SwaggerUIRoute).Handler(http.StripPrefix(config.SwaggerUIRoute, http.FileServer(http.Dir(path + "swaggerui/"))))
 	return
 }
