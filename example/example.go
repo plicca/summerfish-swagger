@@ -30,7 +30,13 @@ func GetStoryAuthorization(w http.ResponseWriter, r *http.Request) {
 }
 
 func GenerateSwaggerDocsAndEndpoints(router *mux.Router, endpoint string) (err error) {
-	swaggerPath, err := filepath.Abs("example/swagger.json")
+	config := summerfish.Config{
+		Schemes:          []string{"http", "https"},
+		SwaggerFileRoute: summerfish.SwaggerFileRoute,
+		SwaggerUIRoute:   "/docs/",
+	}
+
+	config.SwaggerFilePath, err = filepath.Abs("example/swagger.json")
 	if err != nil {
 		return
 	}
@@ -40,18 +46,12 @@ func GenerateSwaggerDocsAndEndpoints(router *mux.Router, endpoint string) (err e
 		return
 	}
 
-	scheme := summerfish.SchemeHolder{Schemes: []string{"http", "https"}, Host: endpoint, BasePath: "/"}
-	err = scheme.GenerateSwaggerFile(routerInformation, swaggerPath)
+	scheme := summerfish.SchemeHolder{Schemes: config.Schemes, Host: endpoint, BasePath: "/"}
+	err = scheme.GenerateSwaggerFile(routerInformation, config.SwaggerFilePath)
 	if err != nil {
 		return
 	}
 
 	log.Println("Swagger documentation generated")
-	config := summerfish.Config{
-		SwaggerFilePath:  swaggerPath,
-		SwaggerFileRoute: summerfish.SwaggerFileRoute,
-		SwaggerUIRoute:   "/docs/",
-	}
-
 	return summerfish.AddSwaggerUIEndpoints(router, config)
 }

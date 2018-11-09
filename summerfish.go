@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"github.com/plicca/summerfish-swagger/swaggerui"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -13,6 +11,13 @@ import (
 
 type Method map[string]Operation
 type PathsHolder map[string]Method
+
+type Config struct {
+	Schemes          []string
+	SwaggerFilePath  string
+	SwaggerFileRoute string
+	SwaggerUIRoute   string
+}
 
 type InputParameter struct {
 	Type        string           `json:"type"`
@@ -173,14 +178,8 @@ func (s *SchemeHolder) GenerateSwaggerFile(routes []RouteHolder, filePath string
 	return
 }
 
-type Config struct {
-	SwaggerFilePath  string
-	SwaggerFileRoute string
-	SwaggerUIRoute   string
-}
-
 func AddSwaggerUIEndpoints(router *mux.Router, config Config) (err error) {
-	fileHandler, err := swaggerui.FileHandler(config.SwaggerFilePath)
+	fileHandler, err := fileHandler(config.SwaggerFilePath)
 	if err != nil {
 		return
 	}
@@ -191,18 +190,6 @@ func AddSwaggerUIEndpoints(router *mux.Router, config Config) (err error) {
 	}
 
 	router.Handle(config.SwaggerFileRoute, fileHandler)
-	router.PathPrefix(config.SwaggerUIRoute).Handler(http.StripPrefix(config.SwaggerUIRoute, http.FileServer(http.Dir("swaggerui/swagger-ui/"))))
+	router.PathPrefix(config.SwaggerUIRoute).Handler(http.StripPrefix(config.SwaggerUIRoute, http.FileServer(http.Dir("swaggerui/"))))
 	return
-}
-
-func updateIndexFile(path string) (err error) {
-	input, err := ioutil.ReadFile("swaggerui/swagger-ui/index.html")
-	if err != nil {
-		return
-	}
-
-	lines := strings.Split(string(input), "\n")
-	lines[76] = "url: \"" + path + "\","
-	output := strings.Join(lines, "\n")
-	return ioutil.WriteFile("swaggerui/swagger-ui/index.html", []byte(output), 0644)
 }
