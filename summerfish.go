@@ -14,11 +14,12 @@ type Method map[string]Operation
 type PathsHolder map[string]Method
 
 type Config struct {
-	Schemes          []string
-	SwaggerFilePath  string
-	SwaggerFileRoute string
-	SwaggerUIRoute   string
-	BaseRoute        string
+	Schemes                []string
+	SwaggerFilePath        string
+	SwaggerFileRoute       string
+	SwaggerFileHeaderRoute string
+	SwaggerUIRoute         string
+	BaseRoute              string
 }
 
 type InputParameter struct {
@@ -44,8 +45,8 @@ type SchemaParameters struct {
 	Properties map[string]SchemaParameters `json:"properties,omitempty"`
 }
 
-const SwaggerFileRoute = "swagger.json"
-const SwaggerUIRoute = "swagger-ui/"
+const SwaggerFileRoute = "/swagger.json"
+const SwaggerUIRoute = "/swagger-ui/"
 
 func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 	var routeParsers []RouteParser
@@ -182,21 +183,17 @@ func (s *SchemeHolder) GenerateSwaggerFile(routes []RouteHolder, filePath string
 }
 
 func AddSwaggerUIEndpoints(router *mux.Router, config Config) (err error) {
-	//Base route is the prefix of all routes
-	config.SwaggerFileRoute = config.BaseRoute + config.SwaggerFileRoute
-	config.SwaggerUIRoute = config.BaseRoute + config.SwaggerUIRoute
-
 	fileHandler, err := fileHandler(config.SwaggerFilePath)
 	if err != nil {
 		return
 	}
 
 	basePath := os.Getenv("GOPATH") + "/src/" + reflect.TypeOf(config).PkgPath()
-	err = updateIndexFile(basePath, config.SwaggerFileRoute)
+	err = updateIndexFile(basePath, config.SwaggerFileHeaderRoute)
 	if err != nil {
 		return
 	}
-	
+
 	router.Handle(config.SwaggerFileRoute, fileHandler)
 	router.PathPrefix(config.SwaggerUIRoute).Handler(http.StripPrefix(config.SwaggerUIRoute, http.FileServer(http.Dir(basePath+"/swaggerui/"))))
 	return

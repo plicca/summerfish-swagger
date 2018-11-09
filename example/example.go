@@ -31,10 +31,11 @@ func GetStoryAuthorization(w http.ResponseWriter, r *http.Request) {
 
 func GenerateSwaggerDocsAndEndpoints(router *mux.Router, endpoint string) (err error) {
 	config := summerfish.Config{
-		Schemes:          []string{"http", "https"},
-		SwaggerFileRoute: summerfish.SwaggerFileRoute,
-		SwaggerUIRoute:   "docs/",
-		BaseRoute:        "/",
+		Schemes:                []string{"http", "https"},
+		SwaggerFileRoute:       summerfish.SwaggerFileRoute,
+		SwaggerFileHeaderRoute: summerfish.SwaggerFileRoute,
+		SwaggerUIRoute:         summerfish.SwaggerUIRoute,
+		BaseRoute:              "/",
 	}
 
 	config.SwaggerFilePath, err = filepath.Abs("example/swagger.json")
