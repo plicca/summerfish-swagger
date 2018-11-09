@@ -7,10 +7,11 @@ import (
 )
 
 type SchemeHolder struct {
-	Schemes  []string    `json:"schemes"`
-	Host     string      `json:"host"`
-	BasePath string      `json:"basePath"`
-	Paths    PathsHolder `json:"paths"`
+	Schemes        []string    `json:"schemes"`
+	Host           string      `json:"host"`
+	BasePath       string      `json:"basePath"`
+	Paths          PathsHolder `json:"paths"`
+	SwaggerVersion string      `json:"swagger"`
 }
 
 var jsonMapping = map[string]string{
