@@ -1,5 +1,5 @@
 # SummerFish
-A refreshing way of handling swagger docs in Golang.
+A refreshing way of handling swagger docs in Golang. Automatic documentation has arrived.
 
 ##  Description
 With SummerFish we bring to Go developers a way of having swagger documentation auto-generated with no annotations needed!
