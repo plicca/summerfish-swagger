@@ -161,7 +161,7 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 		for scanner.Scan() {
 			lineText := scanner.Text()
 
-			lineText, commentSection = CommentCleaner(lineText, commentSection)
+			lineText, commentSection = cleanCommentSection(lineText, commentSection)
 
 			if isFound {
 				if lineText == "}" {

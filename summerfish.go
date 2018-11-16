@@ -115,22 +115,18 @@ func generateFileMap(routeParsers []RouteParser) (sourceFiles map[string][]strin
 
 func convertFileToArrayOfLines(file *os.File) (lines []string) {
 	scanner := bufio.NewScanner(file)
-	commentSection := false
+	isCommentSection := false
 	var line string
 	for scanner.Scan() {
 		//clean commented lines or sections
-		line, commentSection = CommentCleaner(scanner.Text(), commentSection)
-
-		//ignore blank lines
-		if line != "\t" {
-			lines = append(lines, line)
-		}
+		line, isCommentSection = cleanCommentSection(scanner.Text(), isCommentSection)
+		lines = append(lines, line)
 	}
 
 	return lines
 }
 
-func CommentCleaner(line string, commentSection bool) (string, bool) {
+func cleanCommentSection(line string, commentSection bool) (string, bool) {
 	if commentSection {
 		if !strings.Contains(line, "*/") {
 			return "", commentSection
