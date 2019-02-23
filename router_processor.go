@@ -118,11 +118,18 @@ func (rp *RouteParser) searchForAll(name string, lines []string) NameType {
 		return NameType{Name: name, Type: "string"}
 	}
 
-	if len(strings.Split(varType, ".")) <= 1 {
+	_, ok := nativeTypes[varType]
+	if ok {
 		return NameType{Name: name, Type: varType}
 	}
 
-	candidateSourceFiles, err := rp.searchForFullPath(varType, lines)
+	var candidateSourceFiles = []string{}
+	var err error
+	if len(strings.Split(varType, ".")) <= 1 {
+		varType, candidateSourceFiles, err = rp.searchCurrentPackage(varType)
+	} else {
+		candidateSourceFiles, err = rp.searchForFullPath(varType, lines)
+	}
 	if err != nil {
 		return NameType{Name: name, Type: ""}
 	}
@@ -139,7 +146,7 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 	structPackage := structInfo[0]
 	structName := structInfo[1]
 	comp := "type " + structName + " struct"
-	exp := "\\s*\\w+\\s+(.+)\\b\\s+\\S*\\s*json:\"(.+)\""
+	exp := "^\\s*(.+)\\b\\s+(.+)\\b(\\s+`(.+)`)?$"
 	bodyTypeRegex, _ := regexp.Compile(exp)
 
 	if len(childrenNameFromParent) > 0 {
@@ -183,10 +190,19 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 }
 
 func (rp *RouteParser) findNativeType(structPackage string, paths, typeResult []string) (output NameType) {
+	exp := "json:\"(.+)\""
+	jsonNameRegex, _ := regexp.Compile(exp)
 
-	varType := typeResult[1]
-	splitResult := strings.Split(typeResult[2], ",")
-	varName := splitResult[0]
+	varName := typeResult[1]
+	if len(typeResult[4]) > 0 {
+		results := jsonNameRegex.FindStringSubmatch(typeResult[4])
+		if len(results) > 1 {
+			splitResult := strings.Split(results[1], ",")
+			varName = splitResult[0]
+		}
+	}
+
+	varType := typeResult[2]
 
 	isArray := false
 
@@ -232,7 +248,7 @@ func (rp *RouteParser) searchForType(name string, lines []string) string {
 
 func (rp *RouteParser) searchForFullPath(name string, lines []string) (result []string, err error) {
 	splitName := strings.Split(name, ".")[0]
-	exp := "\"(.+)/" + splitName
+	exp := "\"(.+/" + splitName + ")\"$"
 	regex, _ := regexp.Compile(exp)
 	for i := 0; i < len(lines); i++ {
 		lineText := lines[i]
@@ -242,29 +258,45 @@ func (rp *RouteParser) searchForFullPath(name string, lines []string) (result []
 
 		path := regex.FindStringSubmatch(lineText)
 		if len(path) > 1 {
-			goPath := os.Getenv("GOPATH")
-			if len(goPath) == 0 {
-				goPath = build.Default.GOPATH
-			}
+			var values []string
+			values, err = rp.getFilesFromPath(path[1])
+			result = append(result, values...)
+		}
+	}
+	return
+}
 
-			var fullPath string
-			fullPath, err = filepath.Abs(goPath + "/src/" + path[1] + "/" + splitName)
-			if err != nil {
-				return
-			}
+func (rp *RouteParser) searchCurrentPackage(varType string) (completeVarType string, result []string, err error) {
+	path := strings.Split(rp.RelativePath, ".")[0]
+	lastSlashIndex := strings.LastIndex(path, "/")
+	completeVarType = strings.Join([]string{path[lastSlashIndex+1:], varType}, ".")
+	result, err = rp.getFilesFromPath(path)
+	return
+}
 
-			var files []os.FileInfo
-			files, err = ioutil.ReadDir(fullPath)
-			if err != nil {
-				return
-			}
+func (rp *RouteParser) getFilesFromPath(path string) (result []string, err error) {
+	goPath := os.Getenv("GOPATH")
+	if len(goPath) == 0 {
+		goPath = build.Default.GOPATH
+	}
 
-			for _, file := range files {
-				if strings.HasSuffix(file.Name(), ".go") {
-					result = append(result, fullPath+"/"+file.Name())
-				}
+	var fullPath string
+	fullPath, err = filepath.Abs(goPath + "/src/" + path)
+	if err != nil {
+		return
+	}
+
+	var files []os.FileInfo
+	files, err = ioutil.ReadDir(fullPath)
+	if err != nil {
+		return
+	}
+
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".go") {
+			if !strings.HasSuffix(file.Name(), "_test.go") {
+				result = append(result, fullPath+"/"+file.Name())
 			}
-			return
 		}
 	}
 	return
