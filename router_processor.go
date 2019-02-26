@@ -178,7 +178,7 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 
 				typeResult := bodyTypeRegex.FindStringSubmatch(lineText)
 				if len(typeResult) > 1 {
-					result.Children = append(result.Children, rp.findNativeType(structPackage, paths, typeResult))
+					result.Children = append(result.Children, rp.findNativeType(structPackage, typeResult[1], typeResult[2], typeResult[3], paths))
 				}
 			} else if strings.HasPrefix(lineText, comp) {
 				isFound = true
@@ -189,20 +189,17 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 	return
 }
 
-func (rp *RouteParser) findNativeType(structPackage string, paths, typeResult []string) (output NameType) {
+func (rp *RouteParser) findNativeType(structPackage string, varName, varType, varTags string, paths []string) (output NameType) {
 	exp := "json:\"(.+)\""
 	jsonNameRegex, _ := regexp.Compile(exp)
 
-	varName := typeResult[1]
-	if len(typeResult[4]) > 0 {
-		results := jsonNameRegex.FindStringSubmatch(typeResult[4])
+	if len(varTags) > 0 {
+		results := jsonNameRegex.FindStringSubmatch(varTags)
 		if len(results) > 1 {
 			splitResult := strings.Split(results[1], ",")
 			varName = splitResult[0]
 		}
 	}
-
-	varType := typeResult[2]
 
 	isArray := false
 
