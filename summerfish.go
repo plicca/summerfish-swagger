@@ -158,7 +158,7 @@ func RemoveCommentSection(line string) (string, bool) {
 func (s *SchemeHolder) GenerateSwaggerFile(routes []RouteHolder, filePath string) (err error) {
 	s.SwaggerVersion = "2.0"
 	s.Paths = mapRoutesToPaths(routes)
-	encoded, err := json.Marshal(s)
+	encoded, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return
 	}
