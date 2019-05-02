@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/plicca/summerfish-swagger"
 	"log"
@@ -13,32 +12,24 @@ const port = ":8080"
 
 func main() {
 	router := mux.NewRouter()
-	router.HandleFunc("/test/{tokenId}", GetStoryAuthorization).Methods("GET")
+	router.HandleFunc("/ping/", IsAlive).Methods("GET")
 	err := GenerateSwaggerDocsAndEndpoints(router, "localhost"+port)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
 	http.ListenAndServe(port, router)
 }
 
-func GetStoryAuthorization(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	tokenID := vars["tokenId"]
-	w.Write([]byte(tokenID))
+func IsAlive(w http.ResponseWriter, r *http.Request) {
+	pingName := r.URL.Query().Get("pingID")
+	log.Println("Got: ", pingName)
+	w.Write([]byte("pong"))
 }
 
 func GenerateSwaggerDocsAndEndpoints(router *mux.Router, endpoint string) (err error) {
-	config := summerfish.Config{
-		Schemes:                []string{"http", "https"},
-		SwaggerFileRoute:       summerfish.SwaggerFileRoute,
-		SwaggerFileHeaderRoute: summerfish.SwaggerFileRoute,
-		SwaggerUIRoute:         summerfish.SwaggerUIRoute,
-		BaseRoute:              "/",
-	}
-
-	config.SwaggerFilePath, err = filepath.Abs("example/swagger.json")
+	swaggerFilePath, err := filepath.Abs("swaggerui/swagger.json")
 	if err != nil {
 		return
 	}
@@ -48,12 +39,14 @@ func GenerateSwaggerDocsAndEndpoints(router *mux.Router, endpoint string) (err e
 		return
 	}
 
-	scheme := summerfish.SchemeHolder{Schemes: config.Schemes, Host: endpoint, BasePath: config.BaseRoute}
-	err = scheme.GenerateSwaggerFile(routerInformation, config.SwaggerFilePath)
+	scheme := summerfish.SchemeHolder{Schemes: []string{"http", "https"}, Host: endpoint, BasePath: "/"}
+	err = scheme.GenerateSwaggerFile(routerInformation, swaggerFilePath)
 	if err != nil {
 		return
 	}
 
 	log.Println("Swagger documentation generated")
-	return summerfish.AddSwaggerUIEndpoints(router, config)
+	swaggerUIRoute := "/docs/"
+	router.PathPrefix(swaggerUIRoute).Handler(http.StripPrefix(swaggerUIRoute, http.FileServer(http.Dir("swaggerui/"))))
+	return
 }

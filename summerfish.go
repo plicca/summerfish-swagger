@@ -4,9 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"net/http"
 	"os"
-	"reflect"
 	"strings"
 )
 
@@ -44,9 +42,6 @@ type SchemaParameters struct {
 	Items      *SchemaParameters           `json:"items,omitempty"`
 	Properties map[string]SchemaParameters `json:"properties,omitempty"`
 }
-
-const SwaggerFileRoute = "/swagger.json"
-const SwaggerUIRoute = "/swagger-ui/"
 
 func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 	var routeParsers []RouteParser
@@ -175,22 +170,5 @@ func (s *SchemeHolder) GenerateSwaggerFile(routes []RouteHolder, filePath string
 
 	defer f.Close()
 	_, err = f.Write(encoded)
-	return
-}
-
-func AddSwaggerUIEndpoints(router *mux.Router, config Config) (err error) {
-	fileHandler, err := fileHandler(config.SwaggerFilePath)
-	if err != nil {
-		return
-	}
-
-	basePath := os.Getenv("GOPATH") + "/src/" + reflect.TypeOf(config).PkgPath()
-	err = updateIndexFile(basePath, config.SwaggerFileHeaderRoute)
-	if err != nil {
-		return
-	}
-
-	router.Handle(config.SwaggerFileRoute, fileHandler)
-	router.PathPrefix(config.SwaggerUIRoute).Handler(http.StripPrefix(config.SwaggerUIRoute, http.FileServer(http.Dir(basePath+"/swaggerui/"))))
 	return
 }
