@@ -21,9 +21,8 @@ Check out the example package to test with a minimum code example.
 `summerfish-swagger` is still very early in its life.
 
 ##  Future features
-- Support more router (currently we only support gorrila mux)
-- Add more test coverage
-- Iron out the implementation
+- Support more routers (currently we only support gorrila mux)
+- Increase test coverage
 - Your suggestion here :)
 
 ##  Help us out
