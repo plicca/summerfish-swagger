@@ -57,6 +57,10 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 			parameters = append(parameters, mapBodyRoute(router.Body))
 		}
 
+		for _, entry := range router.FormData {
+			parameters = append(parameters, generateInputParameter("formData", entry.Name, entry.Type))
+		}
+
 		tag := strings.Split(router.Route, "/")[1]
 		paths[router.Route][strings.ToLower(router.Methods[0])] = Operation{
 			ID: router.Name, Summary: convertCamelCase(router.Name),
@@ -70,6 +74,12 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 
 func mapBodyRoute(bodyField NameType) (result InputParameter) {
 	result = generateInputParameter("body", bodyField.Name, "object")
+	result.Schema = mapInternalParameters(bodyField)
+	return
+}
+
+func mapFormDataRoute(bodyField NameType) (result InputParameter) {
+	result = generateInputParameter("formData", bodyField.Name, "file")
 	result.Schema = mapInternalParameters(bodyField)
 	return
 }

@@ -22,12 +22,13 @@ type RouteParser struct {
 }
 
 type RouteHolder struct {
-	Path    []NameType
-	Query   []NameType
-	Body    NameType
-	Route   string
-	Methods []string
-	Name    string
+	Path     []NameType
+	Query    []NameType
+	Body     NameType
+	FormData []NameType
+	Route    string
+	Methods  []string
+	Name     string
 }
 
 type NameType struct {
@@ -70,6 +71,8 @@ func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
 	pathRegex, _ := regexp.Compile("vars\\[\"(.+?)\"\\]")
 	queryRegex, _ := regexp.Compile("r\\.URL\\.Query\\(\\).Get\\(\"(.+)\"\\)")
 	bodyRegex, _ := regexp.Compile("json.NewDecoder\\(r.Body\\).Decode\\((.+)\\)")
+	bodyFormFileRegex, _ := regexp.Compile("r\\.FormFile\\(\"(.+)\"\\)")
+	bodyFormValueRegex, _ := regexp.Compile("r\\.FormValue\\(\"(.+)\"\\)")
 
 	rh.Route = rp.Route
 	rh.Methods = rp.Methods
@@ -107,6 +110,16 @@ func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
 		bodyResult := bodyRegex.FindStringSubmatch(lineText)
 		if len(bodyResult) > 1 {
 			rh.Body.Name = strings.Replace(bodyResult[1], "&", "", 1)
+		}
+
+		bodyFormResult := bodyFormFileRegex.FindStringSubmatch(lineText)
+		if len(bodyFormResult) > 1 {
+			rh.FormData = append(rh.FormData, NameType{Name: bodyFormResult[1], Type: "file"})
+		}
+
+		bodyFormValueResult := bodyFormValueRegex.FindStringSubmatch(lineText)
+		if len(bodyFormValueResult) > 1 {
+			rh.FormData = append(rh.FormData, NameType{Name: bodyFormValueResult[1], Type: "string"})
 		}
 	}
 	return
