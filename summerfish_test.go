@@ -45,6 +45,85 @@ func TestProcessSourceFiles(t *testing.T) {
 	}
 }
 
+func TestProcessParseIntVars(t *testing.T) {
+	type args struct {
+		lines []string
+	}
+	tests := []struct {
+		name   string
+		args   args
+		result []string
+	}{
+		{
+			"Process Body Parameters",
+			args{[]string{
+				"import (",
+				"\"encoding/json\"",
+				"\"net/http\"",
+				"\"strconv\"",
+				"\"cmd/component\"",
+				"\"cmd/model/nosql\"",
+				"\"cmd/model/transport\"",
+				"\"cmd/service\"",
+				")",
+				"func UpdateActivity(w http.ResponseWriter, r *http.Request) {",
+				"timestamp, err := strconv.ParseInt(r.URL.Query().Get(\"timestamp\"), 10, 64)",
+				"}",
+			},
+			},
+			[]string{},
+		},
+	}
+
+	routeParser := RouteParser{RelativePath: "."}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := routeParser.processSourceFiles(tt.args.lines)
+			fmt.Println(result.Query)
+		})
+	}
+}
+
+func TestProcessParseMultipleIntVars(t *testing.T) {
+	type args struct {
+		lines []string
+	}
+	tests := []struct {
+		name   string
+		args   args
+		result []string
+	}{
+		{
+			"Process Body Parameters",
+			args{[]string{
+				"import (",
+				"\"encoding/json\"",
+				"\"net/http\"",
+				"\"strconv\"",
+				"\"cmd/component\"",
+				"\"cmd/model/nosql\"",
+				"\"cmd/model/transport\"",
+				"\"cmd/service\"",
+				")",
+				"func UpdateActivity(w http.ResponseWriter, r *http.Request) {",
+				"encoded := r.URL.Query().Get(\"timestamp\")",
+				"timestamp, err := strconv.ParseInt(encoded, 10, 64)",
+				"}",
+			},
+			},
+			[]string{},
+		},
+	}
+
+	routeParser := RouteParser{RelativePath: "."}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := routeParser.processSourceFiles(tt.args.lines)
+			fmt.Println(result.Query)
+		})
+	}
+}
+
 func TestProcessBodyVars(t *testing.T) {
 	type args struct {
 		lines []string
