@@ -238,11 +238,11 @@ func (rp *RouteParser) findNativeType(structPackage string, varName, varType, va
 func (rp *RouteParser) searchForType(name string, lines []string) string {
 	exp := "var " + name + " (.+)"
 	exp2 := name + " := (.+){"
-	exp3 := name + ".* := strconv\\.Parse(.*)\\("
+	exp3 := convertToCamelCase(name) + ".* := strconv\\.Parse(.*)\\("
 
 	bodyTypeRegex, _ := regexp.Compile(exp)
 	bodyTypeRegex2, _ := regexp.Compile(exp2)
-	bodyTypeRegex3, _ := regexp.Compile("(?U)" + exp3)
+	bodyTypeRegex3, _ := regexp.Compile("(?iU)" + exp3)
 	for i := rp.LineNumber; i < len(lines); i++ {
 		lineText := lines[i]
 		typeResult := bodyTypeRegex.FindStringSubmatch(lineText)

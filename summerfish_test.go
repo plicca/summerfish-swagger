@@ -124,6 +124,45 @@ func TestProcessParseMultipleIntVars(t *testing.T) {
 	}
 }
 
+func TestProcessParseBoolDifferentNameVar(t *testing.T) {
+	type args struct {
+		lines []string
+	}
+	tests := []struct {
+		name   string
+		args   args
+		result []string
+	}{
+		{
+			"Process Body Parameters",
+			args{[]string{
+				"import (",
+				"\"encoding/json\"",
+				"\"net/http\"",
+				"\"strconv\"",
+				"\"cmd/component\"",
+				"\"cmd/model/nosql\"",
+				"\"cmd/model/transport\"",
+				"\"cmd/service\"",
+				")",
+				"func UpdateActivity(w http.ResponseWriter, r *http.Request) {",
+				"IDLogin, err := strconv.ParseBool(r.URL.Query().Get(\"id_login\"), 10, 64)",
+				"}",
+			},
+			},
+			[]string{},
+		},
+	}
+
+	routeParser := RouteParser{RelativePath: "."}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := routeParser.processSourceFiles(tt.args.lines)
+			fmt.Println(result.Query)
+		})
+	}
+}
+
 func TestProcessBodyVars(t *testing.T) {
 	type args struct {
 		lines []string
@@ -214,7 +253,7 @@ func TestProcessArrayVars(t *testing.T) {
 
 			op := Operation{
 				ID:         "Something",
-				Summary:    convertCamelCase("Something"),
+				Summary:    convertFromCamelCase("Something"),
 				Parameters: []InputParameter{result},
 				Tags:       []string{"TAG"},
 				Responses:  map[string]string{},

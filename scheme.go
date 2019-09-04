@@ -1,6 +1,7 @@
 package summerfish
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -36,6 +37,8 @@ var jsonMapping = map[string]string{
 	"complex128": "number",
 }
 
+var link = regexp.MustCompile("(^[A-Za-z])|_([A-Za-z])")
+
 func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 	paths := PathsHolder{}
 	for _, router := range routerHolders {
@@ -63,7 +66,7 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 
 		tag := strings.Split(router.Route, "/")[1]
 		paths[router.Route][strings.ToLower(router.Methods[0])] = Operation{
-			ID: router.Name, Summary: convertCamelCase(router.Name),
+			ID: router.Name, Summary: convertFromCamelCase(router.Name),
 			Parameters: parameters,
 			Tags:       []string{tag},
 			Responses:  map[string]string{},
@@ -74,12 +77,6 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 
 func mapBodyRoute(bodyField NameType) (result InputParameter) {
 	result = generateInputParameter("body", bodyField.Name, "object")
-	result.Schema = mapInternalParameters(bodyField)
-	return
-}
-
-func mapFormDataRoute(bodyField NameType) (result InputParameter) {
-	result = generateInputParameter("formData", bodyField.Name, "file")
 	result.Schema = mapInternalParameters(bodyField)
 	return
 }
@@ -113,10 +110,16 @@ func mapInternalParameters(bodyField NameType) (SchemaParameters) {
 }
 
 func generateInputParameter(queryType, name, varType string) InputParameter {
-	return InputParameter{QueryType: queryType, Type: varType, Name: name, Description: convertCamelCase(name), GoName: name}
+	return InputParameter{QueryType: queryType, Type: varType, Name: name, Description: convertFromCamelCase(name), GoName: name}
 }
 
-func convertCamelCase(input string) string {
+func convertToCamelCase(str string) string {
+	return link.ReplaceAllStringFunc(str, func(s string) string {
+		return strings.ToUpper(strings.Replace(s,"_","",-1))
+	})
+}
+
+func convertFromCamelCase(input string) string {
 	if !utf8.ValidString(input) {
 		return input
 	}
