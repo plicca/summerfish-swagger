@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/plicca/summerfish-swagger"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
+
+	"github.com/gorilla/mux"
+	"github.com/plicca/summerfish-swagger"
 )
 
 const port = ":8080"
@@ -59,18 +60,19 @@ func IsAlive(w http.ResponseWriter, r *http.Request) {
 }
 
 func GenerateSwaggerDocsAndEndpoints(router *mux.Router, endpoint string) (err error) {
-	swaggerFilePath, err := filepath.Abs("swaggerui/swagger.json")
-	if err != nil {
-		return
-	}
-
 	routerInformation, err := summerfish.GetInfoFromRouter(router)
 	if err != nil {
 		return
 	}
 
-	scheme := summerfish.SchemeHolder{Schemes: []string{"http", "https"}, Host: endpoint, BasePath: "/"}
-	err = scheme.GenerateSwaggerFile(routerInformation, swaggerFilePath)
+	scheme := summerfish.SchemeHolder{Schemes: []string{"http", "https"}, Host: endpoint, BasePath: "/", Information: summerfish.SchemeInformation{Title: "SummerFish Demo", Version: "0.0.1"}}
+
+	swaggerFilePathYaml, err := filepath.Abs("swaggerui/swagger.yaml")
+	if err != nil {
+		return
+	}
+
+	err = scheme.GenerateSwaggerYaml(routerInformation, swaggerFilePathYaml)
 	if err != nil {
 		return
 	}

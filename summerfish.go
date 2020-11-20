@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"gopkg.in/yaml.v2"
 )
 
 type Method map[string]Operation
@@ -22,20 +23,24 @@ type Config struct {
 }
 
 type InputParameter struct {
-	Type        string           `json:"type"`
-	GoName      string           `json:"x-go-name"`
-	Description string           `json:"description"`
-	Name        string           `json:"name"`
-	QueryType   string           `json:"in"`
-	Schema      SchemaParameters `json:"schema"`
+	Type string `json:"type"`
+	//GoName      string `json:"x-go-name" yaml:"x-go-name"`
+	Description string `json:"description"`
+	Name        string `json:"name"`
+	QueryType   string `json:"in" yaml:"in"`
+}
+
+type OperationResponse struct {
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
 type Operation struct {
-	Parameters []InputParameter  `json:"parameters"`
-	ID         string            `json:"operationId"`
-	Summary    string            `json:"summary"`
-	Tags       []string          `json:"tags"`
-	Responses  map[string]string `json:"responses"`
+	Parameters []InputParameter             `json:"parameters"`
+	ID         string                       `json:"operationId" yaml:"operationId"`
+	Summary    string                       `json:"summary"`
+	Tags       []string                     `json:"tags"`
+	Responses  map[string]OperationResponse `json:"responses"`
+	Consumes   []string                     `json:"consumes,omitempty" yaml:"consumes,omitempty"`
 }
 
 type SchemaParameters struct {
@@ -189,20 +194,37 @@ func RemoveCommentSection(line string) (string, bool) {
 	return line, true
 }
 
-func (s *SchemeHolder) GenerateSwaggerFile(routes []RouteHolder, filePath string) (err error) {
+func (s *SchemeHolder) GenerateSwaggerJson(routes []RouteHolder, filePath string) (err error) {
 	s.SwaggerVersion = "2.0"
 	s.Paths = mapRoutesToPaths(routes)
+	//s.Information = SchemeInformation{Title: "Go Service Name", Version: "0.0.1"}
 	encoded, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return
 	}
 
-	f, err := os.Create(filePath)
+	return createSwaggerFile(filePath, encoded)
+}
+
+func (s *SchemeHolder) GenerateSwaggerYaml(routes []RouteHolder, filePath string) (err error) {
+	s.SwaggerVersion = "2.0"
+	s.Paths = mapRoutesToPaths(routes)
+	//s.Information = SchemeInformation{Title: "Go Service Name", Version: "0.0.1"}
+	encoded, err := yaml.Marshal(&s)
+	if err != nil {
+		return
+	}
+
+	return createSwaggerFile(filePath, encoded)
+}
+
+func createSwaggerFile(path string, payload []byte) (err error) {
+	f, err := os.Create(path)
 	if err != nil {
 		return
 	}
 
 	defer f.Close()
-	_, err = f.Write(encoded)
+	_, err = f.Write(payload)
 	return
 }

@@ -249,14 +249,13 @@ func TestProcessArrayVars(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := mapBodyRoute(tt.args.lines)
-			/*			fmt.Printf("%+v\n", result)*/
-
+			okResponse := OperationResponse{Description: "All okay!"}
 			op := Operation{
 				ID:         "Something",
 				Summary:    convertFromCamelCase("Something"),
 				Parameters: []InputParameter{result},
 				Tags:       []string{"TAG"},
-				Responses:  map[string]string{},
+				Responses:  map[string]OperationResponse{"200": okResponse},
 			}
 
 			encoded, err := json.Marshal(op)

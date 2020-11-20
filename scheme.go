@@ -8,11 +8,17 @@ import (
 )
 
 type SchemeHolder struct {
-	Schemes        []string    `json:"schemes"`
-	Host           string      `json:"host"`
-	BasePath       string      `json:"basePath"`
-	Paths          PathsHolder `json:"paths"`
-	SwaggerVersion string      `json:"swagger"`
+	SwaggerVersion string            `json:"swagger" yaml:"swagger"`
+	Information    SchemeInformation `json:"info" yaml:"info"`
+	Host           string            `json:"host"`
+	BasePath       string            `json:"basePath" yaml:"basePath"`
+	Schemes        []string          `json:"schemes"`
+	Paths          PathsHolder       `json:"paths"`
+}
+
+type SchemeInformation struct {
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+	Title   string `json:"title,omitempty" yaml:"title,omitempty"`
 }
 
 var jsonMapping = map[string]string{
@@ -60,28 +66,37 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 			parameters = append(parameters, mapBodyRoute(router.Body))
 		}
 
+		hasFormData := false
 		for _, entry := range router.FormData {
 			parameters = append(parameters, generateInputParameter("formData", entry.Name, entry.Type))
+			hasFormData = true
 		}
 
 		tag := strings.Split(router.Route, "/")[1]
-		paths[router.Route][strings.ToLower(router.Methods[0])] = Operation{
+		operation := Operation{
 			ID: router.Name, Summary: convertFromCamelCase(router.Name),
 			Parameters: parameters,
 			Tags:       []string{tag},
-			Responses:  map[string]string{},
+			Responses:  map[string]OperationResponse{"200": OperationResponse{Description: "successful operation"}},
 		}
+
+		if hasFormData {
+			operation.Consumes = []string{"multipart/form-data"}
+		}
+
+		paths[router.Route][strings.ToLower(router.Methods[0])] = operation
 	}
+
 	return paths
 }
 
 func mapBodyRoute(bodyField NameType) (result InputParameter) {
 	result = generateInputParameter("body", bodyField.Name, "object")
-	result.Schema = mapInternalParameters(bodyField)
+	//result.Schema = mapInternalParameters(bodyField)
 	return
 }
 
-func mapInternalParameters(bodyField NameType) (SchemaParameters) {
+func mapInternalParameters(bodyField NameType) SchemaParameters {
 	props := make(map[string]SchemaParameters)
 	for _, param := range bodyField.Children {
 		if len(param.Children) > 0 {
@@ -110,12 +125,18 @@ func mapInternalParameters(bodyField NameType) (SchemaParameters) {
 }
 
 func generateInputParameter(queryType, name, varType string) InputParameter {
-	return InputParameter{QueryType: queryType, Type: varType, Name: name, Description: convertFromCamelCase(name), GoName: name}
+	return InputParameter{
+		QueryType:   queryType,
+		Type:        varType,
+		Name:        name,
+		Description: convertFromCamelCase(name),
+		//GoName:      name,
+	}
 }
 
 func convertToCamelCase(str string) string {
 	return link.ReplaceAllStringFunc(str, func(s string) string {
-		return strings.ToUpper(strings.Replace(s,"_","",-1))
+		return strings.ToUpper(strings.Replace(s, "_", "", -1))
 	})
 }
 
