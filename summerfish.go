@@ -3,9 +3,11 @@ package summerfish
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"os"
 	"strings"
+
+	"github.com/gorilla/mux"
+	"gopkg.in/yaml.v2"
 )
 
 type Method map[string]Operation
@@ -21,20 +23,24 @@ type Config struct {
 }
 
 type InputParameter struct {
-	Type        string           `json:"type"`
-	GoName      string           `json:"x-go-name"`
-	Description string           `json:"description"`
-	Name        string           `json:"name"`
-	QueryType   string           `json:"in"`
-	Schema      SchemaParameters `json:"schema"`
+	Type string `json:"type"`
+	//GoName      string `json:"x-go-name" yaml:"x-go-name"`
+	Description string `json:"description"`
+	Name        string `json:"name"`
+	QueryType   string `json:"in" yaml:"in"`
+}
+
+type OperationResponse struct {
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
 type Operation struct {
-	Parameters []InputParameter  `json:"parameters"`
-	ID         string            `json:"operationId"`
-	Summary    string            `json:"summary"`
-	Tags       []string          `json:"tags"`
-	Responses  map[string]string `json:"responses"`
+	Parameters []InputParameter             `json:"parameters"`
+	ID         string                       `json:"operationId" yaml:"operationId"`
+	Summary    string                       `json:"summary"`
+	Tags       []string                     `json:"tags"`
+	Responses  map[string]OperationResponse `json:"responses"`
+	Consumes   []string                     `json:"consumes,omitempty" yaml:"consumes,omitempty"`
 }
 
 type SchemaParameters struct {
@@ -43,37 +49,12 @@ type SchemaParameters struct {
 	Properties map[string]SchemaParameters `json:"properties,omitempty"`
 }
 
+type RouteParserHolder struct {
+	routeParsers []RouteParser
+}
+
 func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
-	var routeParsers []RouteParser
-
-	err = r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) (err error) {
-		routeParser := RouteParser{}
-		routeParser.Route, err = route.GetPathTemplate()
-		if err != nil {
-			if err.Error() == "mux: route doesn't have a path" {
-				err = nil
-			}
-			return
-		}
-
-		methods, err := route.GetMethods()
-		if err != nil {
-			if err.Error() != "mux: route doesn't have methods" {
-				return
-			}
-			err = nil
-		}
-
-		handler := route.Name(routeParser.Route).GetHandler()
-		if handler == nil {
-			return
-		}
-
-		routeParser.Methods = methods
-		routeParser.processHandler(handler)
-		routeParsers = append(routeParsers, routeParser)
-		return
-	})
+	routeParsers, err := getParsersFromRouter(r)
 	if err != nil {
 		return
 	}
@@ -91,24 +72,82 @@ func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 	return
 }
 
+func getParsersFromRouter(r *mux.Router) (routeParsers []RouteParser, err error) {
+	holder := RouteParserHolder{}
+	err = r.Walk(holder.walkGorillaMuxRoutes)
+	if err != nil {
+		return
+	}
+
+	routeParsers = holder.routeParsers
+	return
+}
+
+func (rph *RouteParserHolder) walkGorillaMuxRoutes(route *mux.Route, router *mux.Router, ancestors []*mux.Route) (err error) {
+	pathTemplate, err := route.GetPathTemplate()
+	if err != nil {
+		if err.Error() == "mux: route doesn't have a path" {
+			err = nil
+		}
+
+		return
+	}
+
+	methods, err := route.GetMethods()
+	if err != nil {
+		if err.Error() != "mux: route doesn't have methods" {
+			return
+		}
+
+		err = nil
+	}
+
+	handler := route.Name(pathTemplate).GetHandler()
+	if handler == nil {
+		return
+	}
+
+	relativePath, fullPath, lineNumber := processHandler(handler)
+	if lineNumber == 0 {
+		return
+	}
+
+	rph.routeParsers = append(rph.routeParsers, RouteParser{
+		Route:        pathTemplate,
+		RelativePath: relativePath,
+		FullPath:     fullPath,
+		LineNumber:   lineNumber,
+		Methods:      methods,
+	})
+	return
+}
+
 func generateFileMap(routeParsers []RouteParser) (sourceFiles map[string][]string, err error) {
 	sourceFiles = make(map[string][]string)
 	for _, rp := range routeParsers {
-		if _, wasProcessed := sourceFiles[rp.FullPath]; !wasProcessed {
-			var file *os.File
-			file, err = os.Open(rp.FullPath)
-			if err != nil {
-				return
-			}
-
-			sourceFiles[rp.FullPath] = convertFileToArrayOfLines(file)
-			file.Close()
+		_, wasProcessed := sourceFiles[rp.FullPath]
+		if wasProcessed {
+			continue
 		}
+
+		var lines []string
+		lines, err = processRouteParserSourceFile(rp.FullPath)
+		if err != nil {
+			return
+		}
+
+		sourceFiles[rp.FullPath] = lines
 	}
 	return
 }
 
-func convertFileToArrayOfLines(file *os.File) (lines []string) {
+func processRouteParserSourceFile(path string) (lines []string, err error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return
+	}
+
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	isCommentSection := false
 	var line string
@@ -118,7 +157,7 @@ func convertFileToArrayOfLines(file *os.File) (lines []string) {
 		lines = append(lines, line)
 	}
 
-	return lines
+	return
 }
 
 func cleanCommentSection(line string, commentSection bool) (string, bool) {
@@ -155,20 +194,37 @@ func RemoveCommentSection(line string) (string, bool) {
 	return line, true
 }
 
-func (s *SchemeHolder) GenerateSwaggerFile(routes []RouteHolder, filePath string) (err error) {
+func (s *SchemeHolder) GenerateSwaggerJson(routes []RouteHolder, filePath string) (err error) {
 	s.SwaggerVersion = "2.0"
 	s.Paths = mapRoutesToPaths(routes)
+	//s.Information = SchemeInformation{Title: "Go Service Name", Version: "0.0.1"}
 	encoded, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return
 	}
 
-	f, err := os.Create(filePath)
+	return createSwaggerFile(filePath, encoded)
+}
+
+func (s *SchemeHolder) GenerateSwaggerYaml(routes []RouteHolder, filePath string) (err error) {
+	s.SwaggerVersion = "2.0"
+	s.Paths = mapRoutesToPaths(routes)
+	//s.Information = SchemeInformation{Title: "Go Service Name", Version: "0.0.1"}
+	encoded, err := yaml.Marshal(&s)
+	if err != nil {
+		return
+	}
+
+	return createSwaggerFile(filePath, encoded)
+}
+
+func createSwaggerFile(path string, payload []byte) (err error) {
+	f, err := os.Create(path)
 	if err != nil {
 		return
 	}
 
 	defer f.Close()
-	_, err = f.Write(encoded)
+	_, err = f.Write(payload)
 	return
 }

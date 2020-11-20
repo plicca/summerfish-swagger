@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	kitHttp "github.com/go-kit/kit/transport/http"
 )
 
 type RouteParser struct {
@@ -60,10 +62,22 @@ var nativeTypes = map[string]bool{
 	"complex128": true,
 }
 
-func (rp *RouteParser) processHandler(handler http.Handler) {
-	ptr := runtime.FuncForPC(reflect.ValueOf(handler).Pointer())
-	rp.RelativePath = ptr.Name()
-	rp.FullPath, rp.LineNumber = runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).FileLine(ptr.Entry())
+func processHandler(handler http.Handler) (relativePath string, fullPath string, lineNumber int) {
+	var ptrHolder uintptr
+	v, ok := handler.(*kitHttp.Server)
+	if ok {
+		ptrHolder = reflect.ValueOf(v).Elem().FieldByName("dec").Pointer()
+	} else {
+		ptrHolder = reflect.ValueOf(handler).Pointer()
+	}
+
+	ptr := runtime.FuncForPC(ptrHolder)
+	if ptr == nil {
+		return
+	}
+
+	relativePath = ptr.Name()
+	fullPath, lineNumber = ptr.FileLine(ptr.Entry())
 	return
 }
 
@@ -76,7 +90,13 @@ func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
 
 	rh.Route = rp.Route
 	rh.Methods = rp.Methods
-	rh.Name = strings.Split(rp.RelativePath, ".")[1]
+
+	if strings.Contains(rp.RelativePath, "go-kit") {
+		split := strings.Split(rp.Route, "/")
+		rh.Name = split[len(split)-1]
+	} else {
+		rh.Name = strings.Split(rp.RelativePath, ".")[1]
+	}
 
 	for i := rp.LineNumber; i < len(lines); i++ {
 		lineText := lines[i]
