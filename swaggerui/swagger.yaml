@@ -12,7 +12,7 @@ paths:
     get:
       parameters:
       - type: string
-        description: ping ID
+        description: Ping ID
         name: pingID
         in: query
       operationId: IsAlive_0
@@ -26,11 +26,11 @@ paths:
     post:
       parameters:
       - type: file
-        description: image
+        description: Image
         name: image
         in: formData
       - type: string
-        description: params
+        description: Params
         name: params
         in: formData
       operationId: UploadImage_1
