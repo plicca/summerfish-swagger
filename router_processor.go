@@ -90,7 +90,13 @@ func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
 
 	rh.Route = rp.Route
 	rh.Methods = rp.Methods
-	rh.Name = strings.Split(rp.RelativePath, ".")[1]
+
+	if strings.Contains(rp.RelativePath, "go-kit") {
+		split := strings.Split(rp.Route, "/")
+		rh.Name = split[len(split)-1]
+	} else {
+		rh.Name = strings.Split(rp.RelativePath, ".")[1]
+	}
 
 	for i := rp.LineNumber; i < len(lines); i++ {
 		lineText := lines[i]

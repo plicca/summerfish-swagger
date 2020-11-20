@@ -1,6 +1,7 @@
 package summerfish
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"unicode"
@@ -47,7 +48,11 @@ var link = regexp.MustCompile("(^[A-Za-z])|_([A-Za-z])")
 
 func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 	paths := PathsHolder{}
-	for _, router := range routerHolders {
+	for i, router := range routerHolders {
+		if len(router.Methods) == 0 {
+			continue
+		}
+
 		if _, ok := paths[router.Route]; !ok {
 			paths[router.Route] = Method{}
 		}
@@ -74,7 +79,8 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 
 		tag := strings.Split(router.Route, "/")[1]
 		operation := Operation{
-			ID: router.Name, Summary: convertFromCamelCase(router.Name),
+			ID:         fmt.Sprintf("%s_%d", router.Name, i),
+			Summary:    convertFromCamelCase(router.Name),
 			Parameters: parameters,
 			Tags:       []string{tag},
 			Responses:  map[string]OperationResponse{"200": OperationResponse{Description: "successful operation"}},
@@ -125,13 +131,20 @@ func mapInternalParameters(bodyField NameType) SchemaParameters {
 }
 
 func generateInputParameter(queryType, name, varType string) InputParameter {
-	return InputParameter{
+	ip := InputParameter{
 		QueryType:   queryType,
 		Type:        varType,
 		Name:        name,
-		Description: convertFromCamelCase(name),
-		//GoName:      name,
+		Description: name,
 	}
+
+	//convert from snake case since camelcase is needed for the next step
+	if strings.Contains(name, "_") {
+		ip.Description = convertToCamelCase(ip.Description)
+	}
+
+	ip.Description = convertFromCamelCase(ip.Description)
+	return ip
 }
 
 func convertToCamelCase(str string) string {
@@ -162,23 +175,34 @@ func convertFromCamelCase(input string) string {
 		default:
 			class = 4
 		}
+
 		if class == lastClass {
 			runes[len(runes)-1] = append(runes[len(runes)-1], letter)
 		} else {
 			runes = append(runes, []rune{letter})
 		}
+
 		lastClass = class
 	}
+
 	for i := 0; i < len(runes)-1; i++ {
 		if unicode.IsUpper(runes[i][0]) && unicode.IsLower(runes[i+1][0]) {
 			runes[i+1] = append([]rune{runes[i][len(runes[i])-1]}, runes[i+1]...)
 			runes[i] = runes[i][:len(runes[i])-1]
 		}
 	}
-	for _, entry := range runes {
-		if len(entry) > 0 {
-			entries = append(entries, string(entry))
+
+	for i, entry := range runes {
+		if len(entry) == 0 {
+			continue
 		}
+
+		if i == 0 && unicode.IsLower(entry[0]) {
+			entry[0] -= 32
+		}
+
+		entries = append(entries, string(entry))
 	}
+
 	return strings.Join(entries, " ")
 }
