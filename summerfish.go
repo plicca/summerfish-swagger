@@ -3,9 +3,10 @@ package summerfish
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"os"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 type Method map[string]Operation
@@ -43,37 +44,12 @@ type SchemaParameters struct {
 	Properties map[string]SchemaParameters `json:"properties,omitempty"`
 }
 
+type RouteParserHolder struct {
+	routeParsers []RouteParser
+}
+
 func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
-	var routeParsers []RouteParser
-
-	err = r.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) (err error) {
-		routeParser := RouteParser{}
-		routeParser.Route, err = route.GetPathTemplate()
-		if err != nil {
-			if err.Error() == "mux: route doesn't have a path" {
-				err = nil
-			}
-			return
-		}
-
-		methods, err := route.GetMethods()
-		if err != nil {
-			if err.Error() != "mux: route doesn't have methods" {
-				return
-			}
-			err = nil
-		}
-
-		handler := route.Name(routeParser.Route).GetHandler()
-		if handler == nil {
-			return
-		}
-
-		routeParser.Methods = methods
-		routeParser.processHandler(handler)
-		routeParsers = append(routeParsers, routeParser)
-		return
-	})
+	routeParsers, err := getParsersFromRouter(r)
 	if err != nil {
 		return
 	}
@@ -91,24 +67,82 @@ func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 	return
 }
 
+func getParsersFromRouter(r *mux.Router) (routeParsers []RouteParser, err error) {
+	holder := RouteParserHolder{}
+	err = r.Walk(holder.walkGorillaMuxRoutes)
+	if err != nil {
+		return
+	}
+
+	routeParsers = holder.routeParsers
+	return
+}
+
+func (rph *RouteParserHolder) walkGorillaMuxRoutes(route *mux.Route, router *mux.Router, ancestors []*mux.Route) (err error) {
+	pathTemplate, err := route.GetPathTemplate()
+	if err != nil {
+		if err.Error() == "mux: route doesn't have a path" {
+			err = nil
+		}
+
+		return
+	}
+
+	methods, err := route.GetMethods()
+	if err != nil {
+		if err.Error() != "mux: route doesn't have methods" {
+			return
+		}
+
+		err = nil
+	}
+
+	handler := route.Name(pathTemplate).GetHandler()
+	if handler == nil {
+		return
+	}
+
+	relativePath, fullPath, lineNumber := processHandler(handler)
+	if lineNumber == 0 {
+		return
+	}
+
+	rph.routeParsers = append(rph.routeParsers, RouteParser{
+		Route:        pathTemplate,
+		RelativePath: relativePath,
+		FullPath:     fullPath,
+		LineNumber:   lineNumber,
+		Methods:      methods,
+	})
+	return
+}
+
 func generateFileMap(routeParsers []RouteParser) (sourceFiles map[string][]string, err error) {
 	sourceFiles = make(map[string][]string)
 	for _, rp := range routeParsers {
-		if _, wasProcessed := sourceFiles[rp.FullPath]; !wasProcessed {
-			var file *os.File
-			file, err = os.Open(rp.FullPath)
-			if err != nil {
-				return
-			}
-
-			sourceFiles[rp.FullPath] = convertFileToArrayOfLines(file)
-			file.Close()
+		_, wasProcessed := sourceFiles[rp.FullPath]
+		if wasProcessed {
+			continue
 		}
+
+		var lines []string
+		lines, err = processRouteParserSourceFile(rp.FullPath)
+		if err != nil {
+			return
+		}
+
+		sourceFiles[rp.FullPath] = lines
 	}
 	return
 }
 
-func convertFileToArrayOfLines(file *os.File) (lines []string) {
+func processRouteParserSourceFile(path string) (lines []string, err error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return
+	}
+
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	isCommentSection := false
 	var line string
@@ -118,7 +152,7 @@ func convertFileToArrayOfLines(file *os.File) (lines []string) {
 		lines = append(lines, line)
 	}
 
-	return lines
+	return
 }
 
 func cleanCommentSection(line string, commentSection bool) (string, bool) {

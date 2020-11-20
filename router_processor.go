@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	kitHttp "github.com/go-kit/kit/transport/http"
 )
 
 type RouteParser struct {
@@ -60,10 +62,22 @@ var nativeTypes = map[string]bool{
 	"complex128": true,
 }
 
-func (rp *RouteParser) processHandler(handler http.Handler) {
-	ptr := runtime.FuncForPC(reflect.ValueOf(handler).Pointer())
-	rp.RelativePath = ptr.Name()
-	rp.FullPath, rp.LineNumber = runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).FileLine(ptr.Entry())
+func processHandler(handler http.Handler) (relativePath string, fullPath string, lineNumber int) {
+	var ptrHolder uintptr
+	v, ok := handler.(*kitHttp.Server)
+	if ok {
+		ptrHolder = reflect.ValueOf(v).Elem().FieldByName("dec").Pointer()
+	} else {
+		ptrHolder = reflect.ValueOf(handler).Pointer()
+	}
+
+	ptr := runtime.FuncForPC(ptrHolder)
+	if ptr == nil {
+		return
+	}
+
+	relativePath = ptr.Name()
+	fullPath, lineNumber = ptr.FileLine(ptr.Entry())
 	return
 }
 
