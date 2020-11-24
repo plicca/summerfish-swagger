@@ -38,6 +38,7 @@ type NameType struct {
 	Type     string
 	IsArray  bool
 	Children []NameType
+	IsRequired bool
 }
 
 var nativeTypes = map[string]bool{
@@ -223,13 +224,11 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 }
 
 func (rp *RouteParser) findNativeType(structPackage string, varName, varType, varTags string, paths []string) (output NameType) {
-	exp := "json:\"(.+)\""
-	jsonNameRegex, _ := regexp.Compile(exp)
-
+	jsonTagRegex, _ := regexp.Compile(`(?U)json:"(.+)"`)
 	if len(varTags) > 0 {
-		results := jsonNameRegex.FindStringSubmatch(varTags)
-		if len(results) > 1 {
-			splitResult := strings.Split(results[1], ",")
+		jsonResults := jsonTagRegex.FindStringSubmatch(varTags)
+		if len(jsonResults) > 1 {
+			splitResult := strings.Split(jsonResults[1], ",")
 			varName = splitResult[0]
 		}
 	}
@@ -244,7 +243,7 @@ func (rp *RouteParser) findNativeType(structPackage string, varName, varType, va
 
 	_, ok := nativeTypes[varType]
 	if ok {
-		return NameType{varName, varType, isArray, nil}
+		return NameType{varName, varType, isArray, nil, false}
 	}
 
 	//appends package name if internal

@@ -11,7 +11,7 @@ import (
 type SchemeHolder struct {
 	SwaggerVersion string            `json:"swagger" yaml:"swagger"`
 	Information    SchemeInformation `json:"info" yaml:"info"`
-	Host           string            `json:"host"`
+	Host           string            `json:"host,omitempty" yaml:"host,omitempty"`
 	BasePath       string            `json:"basePath" yaml:"basePath"`
 	Schemes        []string          `json:"schemes"`
 	Paths          PathsHolder       `json:"paths"`
@@ -60,11 +60,11 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 		//Must be initialized like this so that empty converts to json properly
 		parameters := []InputParameter{}
 		for _, entry := range router.Query {
-			parameters = append(parameters, generateInputParameter("query", entry.Name, entry.Type))
+			parameters = append(parameters, generateInputParameter("query", entry.Name, entry.Type, false))
 		}
 
 		for _, entry := range router.Path {
-			parameters = append(parameters, generateInputParameter("path", entry.Name, entry.Type))
+			parameters = append(parameters, generateInputParameter("path", entry.Name, entry.Type, true))
 		}
 
 		if len(router.Body.Name) > 0 {
@@ -73,7 +73,7 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 
 		hasFormData := false
 		for _, entry := range router.FormData {
-			parameters = append(parameters, generateInputParameter("formData", entry.Name, entry.Type))
+			parameters = append(parameters, generateInputParameter("formData", entry.Name, entry.Type, true))
 			hasFormData = true
 		}
 
@@ -97,8 +97,8 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 }
 
 func mapBodyRoute(bodyField NameType) (result InputParameter) {
-	result = generateInputParameter("body", bodyField.Name, "object")
-	//result.Schema = mapInternalParameters(bodyField)
+	result = generateInputParameter("body", bodyField.Name, "", true)
+	result.Schema = mapInternalParameters(bodyField)
 	return
 }
 
@@ -130,12 +130,13 @@ func mapInternalParameters(bodyField NameType) SchemaParameters {
 	return SchemaParameters{Type: "object", Properties: props}
 }
 
-func generateInputParameter(queryType, name, varType string) InputParameter {
+func generateInputParameter(queryType, name, varType string, isRequired bool) InputParameter {
 	ip := InputParameter{
 		QueryType:   queryType,
 		Type:        varType,
 		Name:        name,
 		Description: name,
+		Required: isRequired,
 	}
 
 	//convert from snake case since camelcase is needed for the next step

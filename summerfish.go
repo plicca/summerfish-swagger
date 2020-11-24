@@ -23,11 +23,13 @@ type Config struct {
 }
 
 type InputParameter struct {
-	Type string `json:"type"`
+	Type string `json:"type,omitempty" yaml:"type,omitempty"`
 	//GoName      string `json:"x-go-name" yaml:"x-go-name"`
-	Description string `json:"description"`
 	Name        string `json:"name"`
+	Description string `json:"description"`
 	QueryType   string `json:"in" yaml:"in"`
+	Schema SchemaParameters `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Required bool `json:"required,omitempty" yaml:"required,omitempty"`
 }
 
 type OperationResponse struct {
@@ -45,8 +47,8 @@ type Operation struct {
 
 type SchemaParameters struct {
 	Type       string                      `json:"type"`
-	Items      *SchemaParameters           `json:"items,omitempty"`
-	Properties map[string]SchemaParameters `json:"properties,omitempty"`
+	Items      *SchemaParameters           `json:"items,omitempty" yaml:"items,omitempty"`
+	Properties map[string]SchemaParameters `json:"properties,omitempty" yaml:"properties,omitempty"`
 }
 
 type RouteParserHolder struct {
