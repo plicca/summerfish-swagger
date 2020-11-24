@@ -104,6 +104,10 @@ func mapRoutesToPaths(routerHolders []RouteHolder, prefix string) PathsHolder {
 
 func getTagFromRoute(route string) string {
 	split := strings.Split(route, "/")
+	if len(split) == 0 {
+		return ""
+	}
+
 	if len(split) == 1 {
 		return split[0]
 	}
