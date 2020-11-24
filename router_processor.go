@@ -83,20 +83,30 @@ func processHandler(handler http.Handler) (relativePath string, fullPath string,
 }
 
 func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
-	pathRegex, _ := regexp.Compile("vars\\[\"(.+?)\"\\]")
-	queryRegex, _ := regexp.Compile("r\\.URL\\.Query\\(\\).Get\\(\"(.+)\"\\)")
-	bodyRegex, _ := regexp.Compile("json.NewDecoder\\(r.Body\\).Decode\\((.+)\\)")
-	bodyFormFileRegex, _ := regexp.Compile("r\\.FormFile\\(\"(.+)\"\\)")
-	bodyFormValueRegex, _ := regexp.Compile("r\\.FormValue\\(\"(.+)\"\\)")
+	functionNameRegex, _ := regexp.Compile(`func\s(\(.*\))?\s?(?U)(.*)\s?\(.*{`)
+	pathRegex, _ := regexp.Compile(	`vars\["(.+?)"\]`)
+	queryRegex, _ := regexp.Compile(`r\.URL\.Query\(\).Get\("(.+)"\)`)
+	bodyRegex, _ := regexp.Compile(`json.NewDecoder\(r.Body\).Decode\((.+)\)`)
+	bodyFormFileRegex, _ := regexp.Compile(`r\.FormFile\("(.+)"\)`)
+	bodyFormValueRegex, _ := regexp.Compile(`r\.FormValue\("(.+)"\)`)
 
 	rh.Route = rp.Route
 	rh.Methods = rp.Methods
 
-	if strings.Contains(rp.RelativePath, "go-kit") {
-		split := strings.Split(rp.Route, "/")
-		rh.Name = split[len(split)-1]
-	} else {
-		rh.Name = strings.Split(rp.RelativePath, ".")[1]
+	if rp.LineNumber > 0 {
+		functionNameResult := functionNameRegex.FindStringSubmatch(lines[rp.LineNumber - 1])
+		if len(functionNameResult) > 1 {
+			rh.Name = functionNameResult[len(functionNameResult) -1]
+		}
+	}
+
+	if len(rh.Name) == 0 {
+		if strings.Contains(rp.RelativePath, "go-kit") {
+			split := strings.Split(rp.Route, "/")
+			rh.Name = split[len(split)-1]
+		} else {
+			rh.Name = strings.Split(rp.RelativePath, ".")[1]
+		}
 	}
 
 	for i := rp.LineNumber; i < len(lines); i++ {
