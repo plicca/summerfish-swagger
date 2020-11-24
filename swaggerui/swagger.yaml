@@ -12,13 +12,13 @@ paths:
     get:
       parameters:
       - type: string
-        description: Ping ID
         name: pingID
+        description: Ping ID
         in: query
       operationId: IsAlive_0
       summary: Is Alive
       tags:
-      - ping
+      - Ping
       responses:
         "200":
           description: successful operation
@@ -26,17 +26,19 @@ paths:
     post:
       parameters:
       - type: file
-        description: Image
         name: image
+        description: Image
         in: formData
+        required: true
       - type: string
-        description: Params
         name: params
+        description: Params
         in: formData
+        required: true
       operationId: UploadImage_1
       summary: Upload Image
       tags:
-      - upload
+      - Upload
       responses:
         "200":
           description: successful operation

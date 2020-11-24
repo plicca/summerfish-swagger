@@ -11,7 +11,7 @@ import (
 type SchemeHolder struct {
 	SwaggerVersion string            `json:"swagger" yaml:"swagger"`
 	Information    SchemeInformation `json:"info" yaml:"info"`
-	Host           string            `json:"host"`
+	Host           string            `json:"host,omitempty" yaml:"host,omitempty"`
 	BasePath       string            `json:"basePath" yaml:"basePath"`
 	Schemes        []string          `json:"schemes"`
 	Paths          PathsHolder       `json:"paths"`
@@ -45,14 +45,20 @@ var jsonMapping = map[string]string{
 }
 
 var link = regexp.MustCompile("(^[A-Za-z])|_([A-Za-z])")
+var versionRegex = regexp.MustCompile(`v\d+`)
 
-func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
+func mapRoutesToPaths(routerHolders []RouteHolder, prefix string) PathsHolder {
 	paths := PathsHolder{}
 	for i, router := range routerHolders {
 		if len(router.Methods) == 0 {
 			continue
 		}
 
+		if strings.HasSuffix(prefix, "/") {
+			prefix = prefix[0:len(prefix)-1]
+		}
+
+		router.Route = strings.TrimPrefix(router.Route, prefix)
 		if _, ok := paths[router.Route]; !ok {
 			paths[router.Route] = Method{}
 		}
@@ -60,11 +66,11 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 		//Must be initialized like this so that empty converts to json properly
 		parameters := []InputParameter{}
 		for _, entry := range router.Query {
-			parameters = append(parameters, generateInputParameter("query", entry.Name, entry.Type))
+			parameters = append(parameters, generateInputParameter("query", entry.Name, entry.Type, false))
 		}
 
 		for _, entry := range router.Path {
-			parameters = append(parameters, generateInputParameter("path", entry.Name, entry.Type))
+			parameters = append(parameters, generateInputParameter("path", entry.Name, entry.Type, true))
 		}
 
 		if len(router.Body.Name) > 0 {
@@ -73,16 +79,16 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 
 		hasFormData := false
 		for _, entry := range router.FormData {
-			parameters = append(parameters, generateInputParameter("formData", entry.Name, entry.Type))
+			parameters = append(parameters, generateInputParameter("formData", entry.Name, entry.Type, true))
 			hasFormData = true
 		}
 
-		tag := strings.Split(router.Route, "/")[1]
+		tag := getTagFromRoute(router.Route)
 		operation := Operation{
 			ID:         fmt.Sprintf("%s_%d", router.Name, i),
 			Summary:    convertFromCamelCase(router.Name),
 			Parameters: parameters,
-			Tags:       []string{tag},
+			Tags:       []string{convertToCamelCase(tag)},
 			Responses:  map[string]OperationResponse{"200": OperationResponse{Description: "successful operation"}},
 		}
 
@@ -96,9 +102,27 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 	return paths
 }
 
+func getTagFromRoute(route string) string {
+	split := strings.Split(route, "/")
+	if len(split) == 0 {
+		return ""
+	}
+
+	if len(split) == 1 {
+		return split[0]
+	}
+
+	versionFound := versionRegex.FindStringSubmatch(split[1])
+	if len(versionFound) == 0 || len(versionFound[0]) != len(split[1]) || len(split) <= 2 {
+		return split[1]
+	}
+
+	return split[2]
+}
+
 func mapBodyRoute(bodyField NameType) (result InputParameter) {
-	result = generateInputParameter("body", bodyField.Name, "object")
-	//result.Schema = mapInternalParameters(bodyField)
+	result = generateInputParameter("body", bodyField.Name, "", true)
+	result.Schema = mapInternalParameters(bodyField)
 	return
 }
 
@@ -130,12 +154,13 @@ func mapInternalParameters(bodyField NameType) SchemaParameters {
 	return SchemaParameters{Type: "object", Properties: props}
 }
 
-func generateInputParameter(queryType, name, varType string) InputParameter {
+func generateInputParameter(queryType, name, varType string, isRequired bool) InputParameter {
 	ip := InputParameter{
 		QueryType:   queryType,
 		Type:        varType,
 		Name:        name,
 		Description: name,
+		Required: isRequired,
 	}
 
 	//convert from snake case since camelcase is needed for the next step

@@ -23,11 +23,13 @@ type Config struct {
 }
 
 type InputParameter struct {
-	Type string `json:"type"`
+	Type string `json:"type,omitempty" yaml:"type,omitempty"`
 	//GoName      string `json:"x-go-name" yaml:"x-go-name"`
-	Description string `json:"description"`
 	Name        string `json:"name"`
+	Description string `json:"description"`
 	QueryType   string `json:"in" yaml:"in"`
+	Schema SchemaParameters `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Required bool `json:"required,omitempty" yaml:"required,omitempty"`
 }
 
 type OperationResponse struct {
@@ -45,8 +47,8 @@ type Operation struct {
 
 type SchemaParameters struct {
 	Type       string                      `json:"type"`
-	Items      *SchemaParameters           `json:"items,omitempty"`
-	Properties map[string]SchemaParameters `json:"properties,omitempty"`
+	Items      *SchemaParameters           `json:"items,omitempty" yaml:"items,omitempty"`
+	Properties map[string]SchemaParameters `json:"properties,omitempty" yaml:"properties,omitempty"`
 }
 
 type RouteParserHolder struct {
@@ -196,8 +198,7 @@ func RemoveCommentSection(line string) (string, bool) {
 
 func (s *SchemeHolder) GenerateSwaggerJson(routes []RouteHolder, filePath string) (err error) {
 	s.SwaggerVersion = "2.0"
-	s.Paths = mapRoutesToPaths(routes)
-	//s.Information = SchemeInformation{Title: "Go Service Name", Version: "0.0.1"}
+	s.Paths = mapRoutesToPaths(routes, s.BasePath)
 	encoded, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return
@@ -208,8 +209,7 @@ func (s *SchemeHolder) GenerateSwaggerJson(routes []RouteHolder, filePath string
 
 func (s *SchemeHolder) GenerateSwaggerYaml(routes []RouteHolder, filePath string) (err error) {
 	s.SwaggerVersion = "2.0"
-	s.Paths = mapRoutesToPaths(routes)
-	//s.Information = SchemeInformation{Title: "Go Service Name", Version: "0.0.1"}
+	s.Paths = mapRoutesToPaths(routes, s.BasePath)
 	encoded, err := yaml.Marshal(&s)
 	if err != nil {
 		return

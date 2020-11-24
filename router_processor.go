@@ -38,6 +38,7 @@ type NameType struct {
 	Type     string
 	IsArray  bool
 	Children []NameType
+	IsRequired bool
 }
 
 var nativeTypes = map[string]bool{
@@ -82,20 +83,30 @@ func processHandler(handler http.Handler) (relativePath string, fullPath string,
 }
 
 func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
-	pathRegex, _ := regexp.Compile("vars\\[\"(.+?)\"\\]")
-	queryRegex, _ := regexp.Compile("r\\.URL\\.Query\\(\\).Get\\(\"(.+)\"\\)")
-	bodyRegex, _ := regexp.Compile("json.NewDecoder\\(r.Body\\).Decode\\((.+)\\)")
-	bodyFormFileRegex, _ := regexp.Compile("r\\.FormFile\\(\"(.+)\"\\)")
-	bodyFormValueRegex, _ := regexp.Compile("r\\.FormValue\\(\"(.+)\"\\)")
+	functionNameRegex, _ := regexp.Compile(`func\s(\(.*\))?\s?(?U)(.*)\s?\(.*{`)
+	pathRegex, _ := regexp.Compile(	`vars\["(.+?)"\]`)
+	queryRegex, _ := regexp.Compile(`r\.URL\.Query\(\).Get\("(.+)"\)`)
+	bodyRegex, _ := regexp.Compile(`json.NewDecoder\(r.Body\).Decode\((.+)\)`)
+	bodyFormFileRegex, _ := regexp.Compile(`r\.FormFile\("(.+)"\)`)
+	bodyFormValueRegex, _ := regexp.Compile(`r\.FormValue\("(.+)"\)`)
 
 	rh.Route = rp.Route
 	rh.Methods = rp.Methods
 
-	if strings.Contains(rp.RelativePath, "go-kit") {
-		split := strings.Split(rp.Route, "/")
-		rh.Name = split[len(split)-1]
-	} else {
-		rh.Name = strings.Split(rp.RelativePath, ".")[1]
+	if rp.LineNumber > 0 {
+		functionNameResult := functionNameRegex.FindStringSubmatch(lines[rp.LineNumber - 1])
+		if len(functionNameResult) > 1 {
+			rh.Name = functionNameResult[len(functionNameResult) -1]
+		}
+	}
+
+	if len(rh.Name) == 0 {
+		if strings.Contains(rp.RelativePath, "go-kit") {
+			split := strings.Split(rp.Route, "/")
+			rh.Name = split[len(split)-1]
+		} else {
+			rh.Name = strings.Split(rp.RelativePath, ".")[1]
+		}
 	}
 
 	for i := rp.LineNumber; i < len(lines); i++ {
@@ -223,13 +234,11 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 }
 
 func (rp *RouteParser) findNativeType(structPackage string, varName, varType, varTags string, paths []string) (output NameType) {
-	exp := "json:\"(.+)\""
-	jsonNameRegex, _ := regexp.Compile(exp)
-
+	jsonTagRegex, _ := regexp.Compile(`(?U)json:"(.+)"`)
 	if len(varTags) > 0 {
-		results := jsonNameRegex.FindStringSubmatch(varTags)
-		if len(results) > 1 {
-			splitResult := strings.Split(results[1], ",")
+		jsonResults := jsonTagRegex.FindStringSubmatch(varTags)
+		if len(jsonResults) > 1 {
+			splitResult := strings.Split(jsonResults[1], ",")
 			varName = splitResult[0]
 		}
 	}
@@ -244,7 +253,7 @@ func (rp *RouteParser) findNativeType(structPackage string, varName, varType, va
 
 	_, ok := nativeTypes[varType]
 	if ok {
-		return NameType{varName, varType, isArray, nil}
+		return NameType{varName, varType, isArray, nil, false}
 	}
 
 	//appends package name if internal
