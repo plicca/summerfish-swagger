@@ -198,8 +198,7 @@ func RemoveCommentSection(line string) (string, bool) {
 
 func (s *SchemeHolder) GenerateSwaggerJson(routes []RouteHolder, filePath string) (err error) {
 	s.SwaggerVersion = "2.0"
-	s.Paths = mapRoutesToPaths(routes)
-	//s.Information = SchemeInformation{Title: "Go Service Name", Version: "0.0.1"}
+	s.Paths = mapRoutesToPaths(routes, s.BasePath)
 	encoded, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return
@@ -210,8 +209,7 @@ func (s *SchemeHolder) GenerateSwaggerJson(routes []RouteHolder, filePath string
 
 func (s *SchemeHolder) GenerateSwaggerYaml(routes []RouteHolder, filePath string) (err error) {
 	s.SwaggerVersion = "2.0"
-	s.Paths = mapRoutesToPaths(routes)
-	//s.Information = SchemeInformation{Title: "Go Service Name", Version: "0.0.1"}
+	s.Paths = mapRoutesToPaths(routes, s.BasePath)
 	encoded, err := yaml.Marshal(&s)
 	if err != nil {
 		return

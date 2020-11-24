@@ -45,14 +45,20 @@ var jsonMapping = map[string]string{
 }
 
 var link = regexp.MustCompile("(^[A-Za-z])|_([A-Za-z])")
+var versionRegex = regexp.MustCompile(`v\d+`)
 
-func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
+func mapRoutesToPaths(routerHolders []RouteHolder, prefix string) PathsHolder {
 	paths := PathsHolder{}
 	for i, router := range routerHolders {
 		if len(router.Methods) == 0 {
 			continue
 		}
 
+		if strings.HasSuffix(prefix, "/") {
+			prefix = prefix[0:len(prefix)-1]
+		}
+
+		router.Route = strings.TrimPrefix(router.Route, prefix)
 		if _, ok := paths[router.Route]; !ok {
 			paths[router.Route] = Method{}
 		}
@@ -77,12 +83,12 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 			hasFormData = true
 		}
 
-		tag := strings.Split(router.Route, "/")[1]
+		tag := getTagFromRoute(router.Route)
 		operation := Operation{
 			ID:         fmt.Sprintf("%s_%d", router.Name, i),
 			Summary:    convertFromCamelCase(router.Name),
 			Parameters: parameters,
-			Tags:       []string{tag},
+			Tags:       []string{convertToCamelCase(tag)},
 			Responses:  map[string]OperationResponse{"200": OperationResponse{Description: "successful operation"}},
 		}
 
@@ -94,6 +100,20 @@ func mapRoutesToPaths(routerHolders []RouteHolder) PathsHolder {
 	}
 
 	return paths
+}
+
+func getTagFromRoute(route string) string {
+	split := strings.Split(route, "/")
+	if len(split) == 1 {
+		return split[0]
+	}
+
+	versionFound := versionRegex.FindStringSubmatch(split[1])
+	if len(versionFound) == 0 || len(versionFound[0]) != len(split[1]) || len(split) <= 2 {
+		return split[1]
+	}
+
+	return split[2]
 }
 
 func mapBodyRoute(bodyField NameType) (result InputParameter) {
