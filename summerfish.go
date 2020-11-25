@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -23,13 +24,12 @@ type Config struct {
 }
 
 type InputParameter struct {
-	Type string `json:"type,omitempty" yaml:"type,omitempty"`
-	//GoName      string `json:"x-go-name" yaml:"x-go-name"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	QueryType   string `json:"in" yaml:"in"`
-	Schema SchemaParameters `json:"schema,omitempty" yaml:"schema,omitempty"`
-	Required bool `json:"required,omitempty" yaml:"required,omitempty"`
+	Type        string           `json:"type,omitempty" yaml:"type,omitempty"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	QueryType   string           `json:"in" yaml:"in"`
+	Schema      SchemaParameters `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Required    bool             `json:"required,omitempty" yaml:"required,omitempty"`
 }
 
 type OperationResponse struct {
@@ -53,6 +53,12 @@ type SchemaParameters struct {
 
 type RouteParserHolder struct {
 	routeParsers []RouteParser
+	ID           int
+}
+
+type routeHolderAndName struct {
+	routeHolder       RouteHolder
+	wasEndpointParsed bool
 }
 
 func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
@@ -66,10 +72,41 @@ func GetInfoFromRouter(r *mux.Router) (holders []RouteHolder, err error) {
 		return
 	}
 
+	routeMap := map[int]routeHolderAndName{}
 	for _, rp := range routeParsers {
-		routeHolder := rp.processSourceFiles(sourceFiles[rp.FullPath])
-		holders = append(holders, routeHolder)
+		var routeHolder RouteHolder
+		if rp.IsOnlyEndpointParser {
+			routeHolder = rp.processSourceFilesForEndpoint(sourceFiles[rp.FullPath])
+		} else {
+			routeHolder = rp.processSourceFiles(sourceFiles[rp.FullPath])
+		}
+
+		wasEndpointParsed := rp.IsOnlyEndpointParser
+		existingRouteHolder, ok := routeMap[rp.ID]
+		if ok {
+			wasEndpointParsed = true
+			if existingRouteHolder.wasEndpointParsed {
+				routeHolder.Name = existingRouteHolder.routeHolder.Name
+			} else {
+				existingRouteHolder.routeHolder.Name = routeHolder.Name
+				routeHolder = existingRouteHolder.routeHolder
+			}
+		}
+
+		routeMap[rp.ID] = routeHolderAndName{
+			routeHolder:       routeHolder,
+			wasEndpointParsed: wasEndpointParsed,
+		}
 	}
+
+	for _, v := range routeMap {
+		holders = append(holders, v.routeHolder)
+	}
+
+	//route holders are sorted so that the endpoints are in the same position in the docs
+	sort.Slice(holders, func(i, j int) bool {
+		return holders[i].ID > holders[j].ID
+	})
 
 	return
 }
@@ -85,7 +122,11 @@ func getParsersFromRouter(r *mux.Router) (routeParsers []RouteParser, err error)
 	return
 }
 
+func (rph *RouteParserHolder) incrementID() {
+	rph.ID++
+}
 func (rph *RouteParserHolder) walkGorillaMuxRoutes(route *mux.Route, router *mux.Router, ancestors []*mux.Route) (err error) {
+	defer rph.incrementID()
 	pathTemplate, err := route.GetPathTemplate()
 	if err != nil {
 		if err.Error() == "mux: route doesn't have a path" {
@@ -109,17 +150,33 @@ func (rph *RouteParserHolder) walkGorillaMuxRoutes(route *mux.Route, router *mux
 		return
 	}
 
-	relativePath, fullPath, lineNumber := processHandler(handler)
-	if lineNumber == 0 {
+	namePath, endpointPath := processHandler(handler)
+	if namePath.LineNumber == 0 {
 		return
 	}
 
 	rph.routeParsers = append(rph.routeParsers, RouteParser{
-		Route:        pathTemplate,
-		RelativePath: relativePath,
-		FullPath:     fullPath,
-		LineNumber:   lineNumber,
-		Methods:      methods,
+		ID:                   rph.ID,
+		Route:                pathTemplate,
+		RelativePath:         namePath.RelativePath,
+		FullPath:             namePath.FullPath,
+		LineNumber:           namePath.LineNumber,
+		Methods:              methods,
+		IsOnlyEndpointParser: false,
+	})
+
+	if endpointPath.LineNumber == 0 {
+		return
+	}
+
+	rph.routeParsers = append(rph.routeParsers, RouteParser{
+		ID:                   rph.ID,
+		Route:                pathTemplate,
+		RelativePath:         endpointPath.RelativePath,
+		FullPath:             endpointPath.FullPath,
+		LineNumber:           endpointPath.LineNumber,
+		Methods:              methods,
+		IsOnlyEndpointParser: true,
 	})
 	return
 }

@@ -15,7 +15,7 @@ paths:
         name: pingID
         description: Ping ID
         in: query
-      operationId: IsAlive_0
+      operationId: IsAlive_1
       summary: Is Alive
       tags:
       - Ping
@@ -35,7 +35,7 @@ paths:
         description: Params
         in: formData
         required: true
-      operationId: UploadImage_1
+      operationId: UploadImage_0
       summary: Upload Image
       tags:
       - Upload

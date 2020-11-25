@@ -16,14 +16,23 @@ import (
 )
 
 type RouteParser struct {
-	Route        string
+	ID                   int
+	Route                string
+	RelativePath         string
+	FullPath             string
+	LineNumber           int
+	Methods              []string
+	IsOnlyEndpointParser bool
+}
+
+type RoutePath struct {
 	RelativePath string
 	FullPath     string
 	LineNumber   int
-	Methods      []string
 }
 
 type RouteHolder struct {
+	ID       int
 	Path     []NameType
 	Query    []NameType
 	Body     NameType
@@ -34,10 +43,10 @@ type RouteHolder struct {
 }
 
 type NameType struct {
-	Name     string
-	Type     string
-	IsArray  bool
-	Children []NameType
+	Name       string
+	Type       string
+	IsArray    bool
+	Children   []NameType
 	IsRequired bool
 }
 
@@ -63,28 +72,64 @@ var nativeTypes = map[string]bool{
 	"complex128": true,
 }
 
-func processHandler(handler http.Handler) (relativePath string, fullPath string, lineNumber int) {
-	var ptrHolder uintptr
+func processHandler(handler http.Handler) (RoutePath, RoutePath) {
 	v, ok := handler.(*kitHttp.Server)
 	if ok {
-		ptrHolder = reflect.ValueOf(v).Elem().FieldByName("dec").Pointer()
+		ptrDecoder := reflect.ValueOf(v).Elem().FieldByName("dec").Pointer()
+		ptrEndpoint := reflect.ValueOf(v).Elem().FieldByName("e").Pointer()
+		return getRoutePathForPointer(ptrDecoder), getRoutePathForPointer(ptrEndpoint)
 	} else {
-		ptrHolder = reflect.ValueOf(handler).Pointer()
+		ptrHolder := reflect.ValueOf(handler).Pointer()
+		return getRoutePathForPointer(ptrHolder), RoutePath{}
 	}
 
+	return RoutePath{}, RoutePath{}
+}
+
+func getRoutePathForPointer(ptrHolder uintptr) (rp RoutePath) {
 	ptr := runtime.FuncForPC(ptrHolder)
 	if ptr == nil {
 		return
 	}
 
-	relativePath = ptr.Name()
-	fullPath, lineNumber = ptr.FileLine(ptr.Entry())
+	rp.RelativePath = ptr.Name()
+	rp.FullPath, rp.LineNumber = ptr.FileLine(ptr.Entry())
+	return
+}
+
+func (rp *RouteParser) processSourceFilesForEndpoint(lines []string) (rh RouteHolder) {
+	returnRegex, _ := regexp.Compile(`return.*(\.|\s)\s?(.*)\(`)
+	rh.Route = rp.Route
+	rh.Methods = rp.Methods
+	rh.ID = rp.ID
+
+	for i := rp.LineNumber; i < len(lines); i++ {
+		lineText := lines[i]
+
+		//Finds the end of the function
+		if lineText == "}" {
+			return
+		}
+
+		trimedLine := strings.TrimSpace(lineText)
+		if !strings.HasPrefix(trimedLine, "return") {
+			continue
+		}
+
+		group := returnRegex.FindAllStringSubmatch(trimedLine, -1)
+		if len(group) == 0 || len(group[0]) == 0 {
+			continue
+		}
+
+		rh.Name = group[0][len(group[0])-1]
+	}
+
 	return
 }
 
 func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
 	functionNameRegex, _ := regexp.Compile(`func\s(\(.*\))?\s?(?U)(.*)\s?\(.*{`)
-	pathRegex, _ := regexp.Compile(	`vars\["(.+?)"\]`)
+	pathRegex, _ := regexp.Compile(`vars\["(.+?)"\]`)
 	queryRegex, _ := regexp.Compile(`r\.URL\.Query\(\).Get\("(.+)"\)`)
 	bodyRegex, _ := regexp.Compile(`json.NewDecoder\(r.Body\).Decode\((.+)\)`)
 	bodyFormFileRegex, _ := regexp.Compile(`r\.FormFile\("(.+)"\)`)
@@ -92,11 +137,12 @@ func (rp *RouteParser) processSourceFiles(lines []string) (rh RouteHolder) {
 
 	rh.Route = rp.Route
 	rh.Methods = rp.Methods
+	rh.ID = rp.ID
 
 	if rp.LineNumber > 0 {
-		functionNameResult := functionNameRegex.FindStringSubmatch(lines[rp.LineNumber - 1])
+		functionNameResult := functionNameRegex.FindStringSubmatch(lines[rp.LineNumber-1])
 		if len(functionNameResult) > 1 {
-			rh.Name = functionNameResult[len(functionNameResult) -1]
+			rh.Name = functionNameResult[len(functionNameResult)-1]
 		}
 	}
 
@@ -185,9 +231,6 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 	structInfo := strings.Split(name, ".")
 	structPackage := structInfo[0]
 	structName := structInfo[1]
-	comp := "type " + structName + " struct"
-	exp := "^\\s*(.+)\\b\\s+(.+)\\b(\\s+`(.+)`)?$"
-	bodyTypeRegex, _ := regexp.Compile(exp)
 
 	if len(childrenNameFromParent) > 0 {
 		result.Name = childrenNameFromParent
@@ -196,36 +239,51 @@ func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent strin
 	}
 
 	result.IsArray = isArray
-
 	for _, path := range paths {
-		isFound := false
-		var file *os.File
-		file, _ = os.Open(path)
-
-		commentSection := false
-
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			lineText := scanner.Text()
-
-			lineText, commentSection = cleanCommentSection(lineText, commentSection)
-
-			if isFound {
-				if lineText == "}" {
-					file.Close()
-					return
-				}
-
-				typeResult := bodyTypeRegex.FindStringSubmatch(lineText)
-				if len(typeResult) > 1 {
-					result.Children = append(result.Children, rp.findNativeType(structPackage, typeResult[1], typeResult[2], typeResult[3], paths))
-				}
-			} else if strings.HasPrefix(lineText, comp) {
-				isFound = true
-			}
+		children, isFinished := rp.searchForStructInOneFile(path, structPackage, structName, paths)
+		if len(children) > 0 {
+			result.Children = append(result.Children, children...)
 		}
-		file.Close()
+
+		if isFinished {
+			return
+		}
 	}
+
+	return
+}
+
+func (rp *RouteParser) searchForStructInOneFile(path, structPackage, structName string, paths []string) (children []NameType, isFinished bool) {
+	bodyTypeRegex, _ := regexp.Compile("^\\s*(.+)\\b\\s+(.+)\\b(\\s+`(.+)`)?$")
+	formattedStructName := "type " + structName + " struct"
+
+	file, err := os.Open(path)
+	if err != nil {
+		return
+	}
+
+	defer file.Close()
+	commentSection := false
+	isFound := false
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lineText := scanner.Text()
+		lineText, commentSection = cleanCommentSection(lineText, commentSection)
+		if isFound {
+			if lineText == "}" {
+				isFinished = true
+				return
+			}
+
+			typeResult := bodyTypeRegex.FindStringSubmatch(lineText)
+			if len(typeResult) > 1 {
+				children = append(children, rp.findNativeType(structPackage, typeResult[1], typeResult[2], typeResult[3], paths))
+			}
+		} else if strings.HasPrefix(lineText, formattedStructName) {
+			isFound = true
+		}
+	}
+
 	return
 }
 
