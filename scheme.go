@@ -55,7 +55,7 @@ func mapRoutesToPaths(routerHolders []RouteHolder, prefix string) PathsHolder {
 		}
 
 		if strings.HasSuffix(prefix, "/") {
-			prefix = prefix[0:len(prefix)-1]
+			prefix = prefix[0 : len(prefix)-1]
 		}
 
 		router.Route = strings.TrimPrefix(router.Route, prefix)
@@ -83,7 +83,7 @@ func mapRoutesToPaths(routerHolders []RouteHolder, prefix string) PathsHolder {
 			hasFormData = true
 		}
 
-		tag := getTagFromRoute(router.Route)
+		tag := strings.Replace(getTagFromRoute(router.Route), "-", "_", -1)
 		operation := Operation{
 			ID:         fmt.Sprintf("%s_%d", router.Name, i),
 			Summary:    convertFromCamelCase(router.Name),
@@ -160,7 +160,7 @@ func generateInputParameter(queryType, name, varType string, isRequired bool) In
 		Type:        varType,
 		Name:        name,
 		Description: name,
-		Required: isRequired,
+		Required:    isRequired,
 	}
 
 	//convert from snake case since camelcase is needed for the next step
