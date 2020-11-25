@@ -83,7 +83,7 @@ func mapRoutesToPaths(routerHolders []RouteHolder, prefix string) PathsHolder {
 			hasFormData = true
 		}
 
-		tag := getTagFromRoute(router.Route)
+		tag := strings.Replace(getTagFromRoute(router.Route), "-", "_", -1)
 		operation := Operation{
 			ID:         fmt.Sprintf("%s_%d", router.Name, i),
 			Summary:    convertFromCamelCase(router.Name),

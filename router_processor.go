@@ -172,17 +172,13 @@ func (rp *RouteParser) searchForAll(name string, lines []string) NameType {
 	if len(strings.Split(varType, ".")) <= 1 {
 		varType, candidateSourceFiles, err = rp.searchCurrentPackage(varType)
 	} else {
-		candidateSourceFiles, err = rp.searchForFullPath(varType, lines)
+		candidateSourceFiles = rp.searchForFullPath(varType, lines)
 	}
-	if err != nil {
+	if err != nil || len(candidateSourceFiles) == 0 {
 		return NameType{Name: name, Type: ""}
 	}
 
-	if len(candidateSourceFiles) > 0 {
-		return rp.searchForStruct(varType, "", candidateSourceFiles, false)
-	}
-
-	return NameType{Name: name, Type: ""}
+	return rp.searchForStruct(varType, "", candidateSourceFiles, false)
 }
 
 func (rp *RouteParser) searchForStruct(name string, childrenNameFromParent string, paths []string, isArray bool) (result NameType) {
@@ -292,7 +288,7 @@ func (rp *RouteParser) searchForType(name string, lines []string) string {
 	return ""
 }
 
-func (rp *RouteParser) searchForFullPath(name string, lines []string) (result []string, err error) {
+func (rp *RouteParser) searchForFullPath(name string, lines []string) (result []string) {
 	splitName := strings.Split(name, ".")[0]
 	exp := "\"(.+/" + splitName + ")\"$"
 	regex, _ := regexp.Compile(exp)
@@ -304,16 +300,25 @@ func (rp *RouteParser) searchForFullPath(name string, lines []string) (result []
 
 		path := regex.FindStringSubmatch(lineText)
 		if len(path) > 1 {
-			var values []string
-			values, err = rp.getFilesFromPath(path[1])
+			values, err := rp.getFilesFromPath(path[1])
+			if err != nil {
+				continue
+			}
+
 			result = append(result, values...)
 		}
 	}
+
 	return
 }
 
 func (rp *RouteParser) searchCurrentPackage(varType string) (completeVarType string, result []string, err error) {
-	path := strings.Split(rp.RelativePath, ".")[0]
+	lastDotIndex := strings.LastIndex(rp.RelativePath, ".")
+	if lastDotIndex == 0 {
+		return
+	}
+
+	path := rp.RelativePath[:lastDotIndex]
 	lastSlashIndex := strings.LastIndex(path, "/")
 	completeVarType = strings.Join([]string{path[lastSlashIndex+1:], varType}, ".")
 	result, err = rp.getFilesFromPath(path)
@@ -326,14 +331,12 @@ func (rp *RouteParser) getFilesFromPath(path string) (result []string, err error
 		goPath = build.Default.GOPATH
 	}
 
-	var fullPath string
-	fullPath, err = filepath.Abs(goPath + "/src/" + path)
+	fullPath, err := filepath.Abs(goPath + "/src/" + path)
 	if err != nil {
 		return
 	}
 
-	var files []os.FileInfo
-	files, err = ioutil.ReadDir(fullPath)
+	files, err := ioutil.ReadDir(fullPath)
 	if err != nil {
 		return
 	}
@@ -345,5 +348,6 @@ func (rp *RouteParser) getFilesFromPath(path string) (result []string, err error
 			}
 		}
 	}
+
 	return
 }
